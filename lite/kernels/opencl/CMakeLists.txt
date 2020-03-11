@@ -93,10 +93,14 @@ lite_cc_test(test_instance_norm_image_opencl SRCS instance_norm_image_compute_te
                  DEPS instance_norm_opencl op_registry program context)             
 
 lite_cc_test(test_dropout_image_opencl SRCS dropout_image_compute_test.cc
+<<<<<<< HEAD
                  DEPS dropout_opencl op_registry program context)  
                  
 lite_cc_test(test_pad2d_image_opencl SRCS pad2d_image_compute_test.cc
                  DEPS pad2d_opencl layout_opencl op_registry program context)
+=======
+                 DEPS dropout_opencl op_registry program context)             
+>>>>>>> develop
 ######################
 # buffer kernel      #
 ######################
