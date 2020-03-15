@@ -23,6 +23,12 @@
 #include "lite/core/tensor.h"
 #include "lite/kernels/mlu/bridges/tensor.h"
 
+#define PRINT_HW_TIME false
+
+#if PRINT_HW_TIME
+#include <mutex>
+#endif
+
 namespace paddle {
 namespace lite {
 namespace subgraph {
@@ -32,13 +38,29 @@ namespace mlu {
 // to the MLU IR graph
 class Graph {
  public:
-  Graph() { CNML_CALL(cnmlCreateFusionOp(&fusion_op_)); }
+  Graph() {
+    CNML_CALL(cnmlCreateFusionOp(&fusion_op_));
+#if PRINT_HW_TIME
+    CNRT_CALL(cnrtCreateNotifier(&notifier_start_));
+    CNRT_CALL(cnrtCreateNotifier(&notifier_end_));
+#endif
+  }
 
   ~Graph() {
     CNML_CALL(cnmlDestroyFusionOp(&fusion_op_));
     for (auto op : ops_) {
       CNML_CALL(cnmlDestroyBaseOp(&op));
     }
+#if PRINT_HW_TIME
+    CNRT_CALL(cnrtDestroyNotifier(&notifier_start_));
+    CNRT_CALL(cnrtDestroyNotifier(&notifier_end_));
+    double total_time = 0;
+    for (auto& f : time_log_) {
+      total_time += f;
+    }
+    std::cout << "cnml hardware time for " << time_log_.size()
+              << " process:" << total_time / time_log_.size() << std::endl;
+#endif
   }
 
   // Data node
@@ -89,6 +111,10 @@ class Graph {
   }
 
   void Compute(cnrtInvokeFuncParam_t forward_param, cnrtQueue_t que) {
+#if PRINT_HW_TIME
+    thread_local float hw_time;
+    CNRT_CALL(cnrtPlaceNotifier(notifier_start_, que));
+#endif
     CNML_CALL(cnmlComputeFusionOpForward_V3(fusion_op_,
                                             input_addrs_.data(),
                                             input_addrs_.size(),
@@ -96,7 +122,18 @@ class Graph {
                                             output_addrs_.size(),
                                             &forward_param,
                                             que));
+#if PRINT_HW_TIME
+    CNRT_CALL(cnrtPlaceNotifier(notifier_end_, que));
+#endif
+
     CNRT_CALL(cnrtSyncQueue(que));
+#if PRINT_HW_TIME
+    CNRT_CALL(cnrtNotifierDuration(notifier_start_, notifier_end_, &hw_time));
+    hw_time /= 1000.0f;
+    DLOG(INFO) << "cnml hardware time " << hw_time << "ms" << std::endl;
+    std::lock_guard<std::mutex> lk(time_mut_);
+    time_log_.push_back(hw_time);
+#endif
   }
 
   void BindConstData(std::string tensor_name, ::paddle::lite::Tensor* tensor) {
@@ -158,6 +195,11 @@ class Graph {
   std::vector<std::shared_ptr<MLUTensor>> output_tensors_;
   std::vector<cnmlBaseOp_t> ops_;
   cnmlFusionOp_t fusion_op_;
+#if PRINT_HW_TIME
+  cnrtNotifier_t notifier_start_ = nullptr, notifier_end_ = nullptr;
+  std::mutex time_mut_;
+  std::vector<float> time_log_;
+#endif
 };
 
 }  // namespace mlu
