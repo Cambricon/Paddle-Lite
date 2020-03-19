@@ -31,9 +31,6 @@
 
 #include "lite/api/light_api.h"
 #include "lite/api/paddle_api.h"
-// #include "lite/api/paddle_use_kernels.h"
-// #include "lite/api/paddle_use_ops.h"
-// #include "lite/core/tensor.h"
 
 namespace py = pybind11;
 
