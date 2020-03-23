@@ -25,12 +25,15 @@ namespace lite {
 namespace kernels {
 namespace x86 {
 
-template <typename T>
-void nearest_interp(const T* src, int w_in, int h_in,
-                    T*dst, int w_out, int h_out, float scale_x,
-                    float scale_y, bool with_align) {
+inline void nearest_interp(const float* src,
+                           int w_in,
+                           int h_in,
+                           float* dst,
+                           int w_out,
+                           int h_out,
+                           bool with_align) {
   float scale_w_new = (with_align)
-                          ? (static_cast<float>(w_in - 1) / (w_out -1))
+                          ? (static_cast<float>(w_in - 1) / (w_out - 1))
                           : (static_cast<float>(w_in) / (w_out));
   float scale_h_new = (with_align)
                           ? (static_cast<float>(h_in - 1) / (h_out - 1))
@@ -56,7 +59,8 @@ void nearest_interp(const T* src, int w_in, int h_in,
   }
 }
 
-std::vector<int> get_new_shape(std::vector<const lite::Tensor*> list_new_shape_tensor) {
+inline std::vector<int> get_new_shape(
+    std::vector<const lite::Tensor*> list_new_shape_tensor) {
   std::vector<int> vec_new_shape;
   for (size_t i = 0; i < list_new_shape_tensor.size(); ++i) {
     auto tensor = list_new_shape_tensor[i];
@@ -66,18 +70,7 @@ std::vector<int> get_new_shape(std::vector<const lite::Tensor*> list_new_shape_t
   return vec_new_shape;
 }
 
-template < typename T>
-std::vector<T> get_new_data_from_tensor(const Tensor* new_data_tensor) {
-  std::vector<T> vec_new_data;
-  auto* new_data = new_data_tensor->data<T>();
-  lite::Tensor cpu_starts_tensor;
-  vec_new_data =
-      std::vector<T>(new_data, new_data + new_data_tensor->dims().production());
-  return vec_new_data;
-}
-
-template <typename T>
-class InterPolateCompute : public KernelLite<TARGET(kX86), PRECISION(kFloat)> {
+class InterpolateCompute : public KernelLite<TARGET(kX86), PRECISION(kFloat)> {
  public:
   using param_t = operators::InterpolateParam;
 
@@ -92,32 +85,26 @@ class InterPolateCompute : public KernelLite<TARGET(kX86), PRECISION(kFloat)> {
     } else {
       auto scale_tensor = param.Scale;
       if (scale_tensor != nullptr) {
-        auto scale_data = get_new_data_from_tensor<float>(scale_tensor);
+        auto* scale_data = param.Scale->mutable_data<float>();
         param.scale = scale_data[0];
       }
       if (param.scale > 0) {
         param.out_h = static_cast<int>(in_h * param.scale);
         param.out_w = static_cast<int>(in_w * param.scale);
       }
-      auto out_size = param.OutSize;
-      if (out_size != nullptr) {
-        auto out_size_data = get_new_data_from_tensor<int>(out_size);
-        param.out_h = out_size_data[0];
-        param.out_w = out_size_data[1];
+      if (param.OutSize != nullptr) {
+        auto* outsize_data = param.OutSize->mutable_data<float>();
+        param.out_h = outsize_data[0];
+        param.out_w = outsize_data[1];
       }
     }
-    float height_scale = param.scale;
-    float width_scale = param.scale;
-    if (param.out_w > 0 && param.out_h > 0) {
-      height_scale = static_cast<float>(param.out_h / param.X->dims()[2]);
-      width_scale = static_cast<float>(param.out_w / param.X->dims()[3]);
-    }
+
     int num_cout = param.X->dims()[0];
     int c_cout = param.X->dims()[1];
     param.Out->Resize({num_cout, c_cout, param.out_h, param.out_w});
 
-    float* dout = param.Out->mutable_data<T>();
-    const float* din = param.X->data<T>();
+    float* dout = param.Out->mutable_data<float>();
+    const float* din = param.X->data<float>();
     int out_num = param.Out->dims()[0];
     int out_c = param.Out->dims()[1];
     int count = out_num * out_c;
@@ -126,7 +113,7 @@ class InterPolateCompute : public KernelLite<TARGET(kX86), PRECISION(kFloat)> {
     int spatial_in = in_h * in_w;
     int spatial_out = out_h * out_w;
 
-  #pragma omp parallel for
+#pragma omp parallel for
     for (int i = 0; i < count; ++i) {
       nearest_interp(din + spatial_in * i,
                      in_w,
@@ -134,13 +121,11 @@ class InterPolateCompute : public KernelLite<TARGET(kX86), PRECISION(kFloat)> {
                      dout + spatial_out * i,
                      out_w,
                      out_h,
-                     1.f / width_scale,
-                     1.f / height_scale,
                      param.align_corners);
     }
   }
 
-  virtual ~InterPolateCompute() = default;
+  virtual ~InterpolateCompute() = default;
 };
 
 }  // namespace x86

@@ -102,3 +102,5 @@ lite_cc_test(test_var_conv_2d_compute_x86 SRCS var_conv_2d_compute_test.cc DEPS 
 #lite_cc_test(test_attention_padding_mask_compute_x86 SRCS attention_padding_mask_compute_test.cc DEPS attention_padding_mask_compute_x86)
 lite_cc_test(test_sequence_arithmetic_compute_x86 SRCS sequence_arithmetic_compute_test.cc DEPS sequence_arithmetic_compute_x86)
 lite_cc_test(test_leaky_relu_compute_x86 SRCS leaky_relu_compute_test.cc DEPS activation_compute_x86)
+lite_cc_test(test_nearest_interp_comute_x86 SRCS interpolate_compute_test.cc
+  DEPS interpolate_compute_x86)
