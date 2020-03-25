@@ -268,6 +268,7 @@ void test_conv(int bs,
     VLOG(5) << i;
     EXPECT_NEAR(output_data[i], output_ref_data[i], 1e-5);
   }
+  
 }
 
 TEST(MLUBridges, conv) {
@@ -333,6 +334,10 @@ TEST(MLUBridges, conv) {
   test_conv(1, 3, 6, 14, 14, false, false, false, true, 2, 1, 2, 5);
   test_conv(1, 3, 6, 14, 14, false, false, false, true, 2, 1, 0, 5);
 #endif
+}
+
+TEST(MLUBridges, depthwise_conv2d) {
+  test_conv(1, 8, 8, 14, 14, false, false, false, true, 1, 1, 2, 3);
 }
 
 }  // namespace mlu
