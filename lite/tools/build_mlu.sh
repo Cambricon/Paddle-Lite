@@ -75,7 +75,7 @@ function build_mlu {
         -DWITH_TESTING=${WITH_TESTING} \
         -DNEUWARE_HOME=${NEUWARE_HOME}
 
-    make $TARGET_NAME -j$NUM_CORES_FOR_COMPILE
+    make $TARGET_NAME -j1
 
     cd -
     echo "Done"
