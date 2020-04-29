@@ -25,6 +25,7 @@ lite_cc_library(subgraph_bridge_split_op_mlu SRCS split_op.cc DEPS ${subgraph_br
 lite_cc_library(subgraph_bridge_argmax_op_mlu SRCS argmax_op.cc DEPS ${subgraph_bridge_deps_mlu})
 lite_cc_library(subgraph_bridge_squeeze_op_mlu SRCS squeeze_op.cc DEPS ${subgraph_bridge_deps_mlu})
 lite_cc_library(subgraph_bridge_density_prior_box_op_mlu SRCS density_prior_box_op.cc DEPS ${subgraph_bridge_deps_mlu})
+lite_cc_library(subgraph_bridge_box_coder_op_mlu SRCS box_coder_op.cc DEPS ${subgraph_bridge_deps_mlu})
 set(mlu_subgraph_bridges
         subgraph_bridge_registry
         subgraph_bridge_utility_mlu
@@ -45,6 +46,7 @@ set(mlu_subgraph_bridges
         subgraph_bridge_split_op_mlu
         subgraph_bridge_argmax_op_mlu
         subgraph_bridge_squeeze_op_mlu
+        subgraph_bridge_box_coder_op_mlu 
         subgraph_bridge_density_prior_box_op_mlu 
         CACHE INTERNAL "mlu_subgraph_bridges")
 
@@ -72,6 +74,7 @@ lite_cc_test(test_split_converter_mlu SRCS split_op_test.cc DEPS scope optimizer
 lite_cc_test(test_argmax_converter_mlu SRCS argmax_op_test.cc DEPS scope optimizer target_wrapper_host model_parser program ${mlu_subgraph_bridges} subgraph_compute_mlu subgraph_test_helper_mlu)
 lite_cc_test(test_squeeze_converter_mlu SRCS squeeze_op_test.cc DEPS scope optimizer target_wrapper_host model_parser program ${mlu_subgraph_bridges} subgraph_compute_mlu subgraph_test_helper_mlu)
 lite_cc_test(test_density_prior_box_mlu SRCS density_prior_box_op_test.cc DEPS scope optimizer target_wrapper_host model_parser program ${mlu_subgraph_bridges} subgraph_compute_mlu subgraph_test_helper_mlu)
+lite_cc_test(test_box_coder_mlu SRCS box_coder_op_test.cc DEPS scope optimizer target_wrapper_host model_parser program ${mlu_subgraph_bridges} subgraph_compute_mlu subgraph_test_helper_mlu)
 if (LITE_BUILD_EXTRA)
   lite_cc_test(test_lrn_converter_mlu SRCS lrn_op_test.cc DEPS scope optimizer target_wrapper_host model_parser program ${mlu_subgraph_bridges} subgraph_compute_mlu subgraph_test_helper_mlu)
 endif()
