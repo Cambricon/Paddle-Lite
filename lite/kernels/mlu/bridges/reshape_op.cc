@@ -38,13 +38,6 @@ int ReshapeConverter(void* ctx, OpLite* op, KernelBase* kernel) {
   auto output_tensor = graph->AddNode(
       out_var_name, output_dims, CNML_TENSOR, CNML_NCHW, graph->FPType());
 
-  // =============== DEBUG ====================
-  VLOG(6) << "x_var_name: " << x_var_name;
-  VLOG(6) << "out_var_name: " << out_var_name;
-  VLOG(6) << "output dim: " << output->dims();
-  VLOG(6) << "input dim: " << x->dims();
-  // =============== DEBUG END =================
-
   auto input_tensor = graph->GetNode(x_var_name);
   cnmlBaseOp_t reshape_op;
 
@@ -58,6 +51,23 @@ int ReshapeConverter(void* ctx, OpLite* op, KernelBase* kernel) {
                                 reshape_param,
                                 input_tensor->mlu_tensor(),
                                 output_tensor->mlu_tensor()));
+
+  // =============== DEBUG ====================
+  VLOG(6) << "x_var_name: " << x_var_name;
+  VLOG(6) << "out_var_name: " << out_var_name;
+  VLOG(6) << "input dim: " << x->dims();
+  VLOG(6) << "output dim: " << output->dims();
+  int cnml_input_shape[4];
+  CNML_CALL(cnmlGetTensorShape(input_tensor->mlu_tensor(), cnml_input_shape));
+  VLOG(6) << "cnml input dim: ";
+  for (size_t i = 0; i < 4; i++) {
+    VLOG(6) << cnml_input_shape[i];
+  }
+  VLOG(6) << "cnml out dim: ";
+  for (size_t i = 0; i < 4; i++) {
+    VLOG(6) << cnml_out_shape[i];
+  }
+  // =============== DEBUG END =================
 
   // CNML_CALL(cnmlCreateReshapeOp_V2(
   //     &reshape_op,

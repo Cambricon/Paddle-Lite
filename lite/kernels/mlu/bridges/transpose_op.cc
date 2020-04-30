@@ -56,6 +56,20 @@ int TransposeConverter(void* ctx, OpLite* op, KernelBase* kernel) {
   }
   std::vector<int> axis_nhwc = axis_to_nhwc(axis);
 
+  // =============== DEBUG LOG ======================
+  VLOG(6) << "x_var_name :" << x_var_name;
+  VLOG(6) << "x_dims :" << x->dims();
+  VLOG(6) << "out_var_name :" << out_var_name;
+  VLOG(6) << "output_dims :" << output->dims();
+  VLOG(6) << "axis :";
+  for (size_t i = 0; i < axis.size(); i++) {
+    VLOG(6) << axis[i];
+  }
+  VLOG(6) << "axis_nhwc :";
+  for (size_t i = 0; i < axis_nhwc.size(); i++) {
+    VLOG(6) << axis_nhwc[i];
+  }
+  // =============== DEBUG END ======================
   auto output_tensor = graph->AddNode(
       out_var_name, output_dims, CNML_TENSOR, CNML_NCHW, graph->FPType());
 
@@ -76,6 +90,7 @@ int TransposeConverter(void* ctx, OpLite* op, KernelBase* kernel) {
 
   graph->FuseOp(transpose_op);
   CNML_CALL(cnmlDestroyBaseOp(&transpose_op));
+  VLOG(6) << "transpose convert finished";
   return SUCCESS;
 }
 

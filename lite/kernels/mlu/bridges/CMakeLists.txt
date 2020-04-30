@@ -28,6 +28,8 @@ lite_cc_library(subgraph_bridge_density_prior_box_op_mlu SRCS density_prior_box_
 lite_cc_library(subgraph_bridge_box_coder_op_mlu SRCS box_coder_op.cc DEPS ${subgraph_bridge_deps_mlu})
 lite_cc_library(subgraph_bridge_reshape_op_mlu SRCS reshape_op.cc DEPS ${subgraph_bridge_deps_mlu})
 lite_cc_library(subgraph_bridge_flatten_op_mlu SRCS flatten_op.cc DEPS ${subgraph_bridge_deps_mlu})
+lite_cc_library(subgraph_bridge_box_coder_op_mlu SRCS box_coder_op.cc DEPS ${subgraph_bridge_deps_mlu})
+lite_cc_library(subgraph_bridge_density_prior_box_op_mlu SRCS density_prior_box_op.cc DEPS ${subgraph_bridge_deps_mlu})
 set(mlu_subgraph_bridges
         subgraph_bridge_registry
         subgraph_bridge_utility_mlu
@@ -52,6 +54,8 @@ set(mlu_subgraph_bridges
         subgraph_bridge_density_prior_box_op_mlu 
         subgraph_bridge_reshape_op_mlu
         subgraph_bridge_flatten_op_mlu
+        subgraph_bridge_box_coder_op_mlu 
+        subgraph_bridge_density_prior_box_op_mlu 
         CACHE INTERNAL "mlu_subgraph_bridges")
 
 

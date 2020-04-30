@@ -67,8 +67,13 @@ int BoxCoderConverter(void* ctx, OpLite* op, KernelBase* kernel) {
   }
 
   if (op_info->HasAttr("variance")) {
-    LOG(FATAL) << "box coder mlu kernel expect not have variance attr"
-               << std::endl;
+    LOG(WARNING) << "box coder mlu kernel expect not have variance attr"
+                 << std::endl;
+    VLOG(6) << "variance: ";
+    auto variance_vec = op_info->GetAttr<std::vector<float>>("variance");
+    for (size_t i = 0; i < variance_vec.size(); i++) {
+      VLOG(6) << variance_vec[i];
+    }
   }
   BoxCodeType code_type = GetBoxCodeType(code_type_str);
 

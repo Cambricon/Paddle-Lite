@@ -21,6 +21,25 @@ namespace lite {
 namespace subgraph {
 namespace mlu {
 
+void inferShape(Tensor* input,
+                Tensor* boxes,
+                Tensor* variances,
+                std::vector<float> fixed_ratios,
+                std::vector<int> densities) {
+  auto feat_height = input->dims()[2];
+  auto feat_width = input->dims()[3];
+
+  int num_priors = 0;
+  for (size_t i = 0; i < densities.size(); ++i) {
+    num_priors += (fixed_ratios.size()) * (pow(densities[i], 2));
+  }
+
+  std::vector<int64_t> boxes_shape = {feat_width, feat_height, num_priors, 4};
+  std::vector<int64_t> vars_shape = boxes_shape;
+  boxes->Resize(boxes_shape);
+  variances->Resize(vars_shape);
+}
+
 int DensityPriorBoxConverter(void* ctx, OpLite* op, KernelBase* kernel) {
   CHECK(ctx != nullptr);
   CHECK(op != nullptr);
@@ -40,19 +59,21 @@ int DensityPriorBoxConverter(void* ctx, OpLite* op, KernelBase* kernel) {
   auto boxes_var = scope->FindVar(boxes_name)->GetMutable<Tensor>();
   auto variances_var = scope->FindVar(variances_name)->GetMutable<Tensor>();
 
-  auto input_dims = input_var->dims();
-  auto image_dims = image_var->dims();
-  auto boxes_dims = boxes_var->dims();
-  auto variances_dims = variances_var->dims();
-
   auto clip = op_info->GetAttr<bool>("clip");
   auto fixed_sizes = op_info->GetAttr<std::vector<float>>("fixed_sizes");
   auto fixed_ratios = op_info->GetAttr<std::vector<float>>("fixed_ratios");
   auto variances_ = op_info->GetAttr<std::vector<float>>("variances");
-  auto density_sizes = op_info->GetAttr<std::vector<int>>("density_sizes");
+  auto densities = op_info->GetAttr<std::vector<int>>("densities");
   auto offset = op_info->GetAttr<float>("offset");
   auto step_w = op_info->GetAttr<float>("step_w");
   auto step_h = op_info->GetAttr<float>("step_h");
+
+  inferShape(input_var, boxes_var, variances_var, fixed_ratios, densities);
+
+  auto input_dims = input_var->dims();
+  auto image_dims = image_var->dims();
+  auto boxes_dims = boxes_var->dims();
+  auto variances_dims = variances_var->dims();
 
   auto feat_tensor = graph->GetNode(input_name);
   auto image_tensor = graph->GetNode(image_name);
@@ -96,12 +117,26 @@ int DensityPriorBoxConverter(void* ctx, OpLite* op, KernelBase* kernel) {
   for (auto tmp : variances_) {
     VLOG(6) << tmp;
   }
-  VLOG(6) << "density_sizes : ";
-  for (auto tmp : density_sizes) {
+  VLOG(6) << "densities : ";
+  for (auto tmp : densities) {
     VLOG(6) << tmp;
   }
   VLOG(6) << "offset : " << offset;
   VLOG(6) << "clip : " << clip;
+
+  int cnml_boxes_shape[4];
+  CNML_CALL(cnmlGetTensorShape(boxes_tensor->mlu_tensor(), cnml_boxes_shape));
+  VLOG(6) << "cnml_boxes_shape";
+  for (size_t i = 0; i < 4; i++) {
+    VLOG(6) << cnml_boxes_shape[i];
+  }
+  int cnml_vars_shape[4];
+  VLOG(6) << "cnml_vars_shape";
+  CNML_CALL(
+      cnmlGetTensorShape(variances_tensor->mlu_tensor(), cnml_vars_shape));
+  for (size_t i = 0; i < 4; i++) {
+    VLOG(6) << cnml_vars_shape[i];
+  }
 
   int feat_width = input_dims[3];
   int feat_height = input_dims[2];
@@ -116,8 +151,8 @@ int DensityPriorBoxConverter(void* ctx, OpLite* op, KernelBase* kernel) {
                                          image_height,
                                          variances_.data(),
                                          variances_.size(),
-                                         density_sizes.data(),
-                                         density_sizes.size(),
+                                         densities.data(),
+                                         densities.size(),
                                          fixed_sizes.data(),
                                          fixed_sizes.size(),
                                          fixed_ratios.data(),

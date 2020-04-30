@@ -50,6 +50,14 @@ bool ReshapeOp::InferShapeImpl() const {
   const auto &x_dims = param_.x->dims();
   auto output_dims = ValidateShape(final_shape, x_dims);
   param_.output->Resize(output_dims);
+  // =============== DEBUG LOG ==================
+  VLOG(6) << "final_shape";
+  for (size_t i = 0; i < final_shape.size(); i++) {
+    VLOG(6) << final_shape[i];
+  }
+  VLOG(6) << "x_dims: " << x_dims;
+  VLOG(6) << "output_dims: " << param_.output->dims();
+  // =============== DEBUG END ==================
   auto out_lod = param_.output->mutable_lod();
   *out_lod = param_.x->lod();
   return true;

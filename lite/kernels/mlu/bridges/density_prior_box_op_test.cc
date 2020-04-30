@@ -33,17 +33,17 @@ void ToFile(Tensor tensor, std::string file_name) {
   of.close();
 }
 
-void inferSshape(Tensor* input,
-                 Tensor* boxes,
-                 Tensor* variances,
-                 std::vector<float> fixed_ratios,
-                 std::vector<int> density_sizes) {
+void inferShape(Tensor* input,
+                Tensor* boxes,
+                Tensor* variances,
+                std::vector<float> fixed_ratios,
+                std::vector<int> densities) {
   auto feat_height = input->dims()[2];
   auto feat_width = input->dims()[3];
 
   int num_priors = 0;
-  for (size_t i = 0; i < density_sizes.size(); ++i) {
-    num_priors += (fixed_ratios.size()) * (pow(density_sizes[i], 2));
+  for (size_t i = 0; i < densities.size(); ++i) {
+    num_priors += (fixed_ratios.size()) * (pow(densities[i], 2));
   }
 
   std::vector<int64_t> boxes_shape = {feat_width, feat_height, num_priors, 4};
@@ -68,7 +68,7 @@ void prior_density_box_ref(
   auto fixed_sizes = op_info->GetAttr<std::vector<float>>("fixed_sizes");
   auto fixed_ratios = op_info->GetAttr<std::vector<float>>("fixed_ratios");
   auto variances_ = op_info->GetAttr<std::vector<float>>("variances");
-  auto density_sizes = op_info->GetAttr<std::vector<int>>("density_sizes");
+  auto densities = op_info->GetAttr<std::vector<int>>("densities");
   auto offset = op_info->GetAttr<float>("offset");
   auto step_w = op_info->GetAttr<float>("step_w");
   auto step_h = op_info->GetAttr<float>("step_h");
@@ -76,8 +76,8 @@ void prior_density_box_ref(
   std::vector<int> input_shape = {128, 128};
   std::vector<int> image_shape = {256, 256};
   int num_priors = 0;
-  for (size_t i = 0; i < density_sizes.size(); ++i) {
-    num_priors += (fixed_ratios.size()) * (pow(density_sizes[i], 2));
+  for (size_t i = 0; i < densities.size(); ++i) {
+    num_priors += (fixed_ratios.size()) * (pow(densities[i], 2));
   }
 
   int boxes_count = boxes_tensor->dims().production();
@@ -115,7 +115,7 @@ void prior_density_box_ref(
       // Generate density prior boxes with fixed sizes.
       for (size_t s = 0; s < fixed_sizes.size(); ++s) {
         auto fixed_size = fixed_sizes[s];
-        int density = density_sizes[s];
+        int density = densities[s];
         int shift = step_average / density;
         // Generate density prior boxes with fixed ratios.
         for (size_t r = 0; r < fixed_ratios.size(); ++r) {
@@ -172,7 +172,7 @@ void test_prior_density_box(int feat_h,
                             std::vector<float> fixed_sizes,
                             std::vector<float> fixed_ratios,
                             std::vector<float> variances_,
-                            std::vector<int> density_sizes,
+                            std::vector<int> densities,
                             float step_w,
                             float step_h,
                             float offset) {
@@ -208,14 +208,14 @@ void test_prior_density_box(int feat_h,
   opdesc.SetAttr("fixed_sizes", fixed_sizes);
   opdesc.SetAttr("fixed_ratios", fixed_ratios);
   opdesc.SetAttr("variances", variances_);
-  opdesc.SetAttr("density_sizes", density_sizes);
+  opdesc.SetAttr("densities", densities);
   opdesc.SetAttr("offset", offset);
   opdesc.SetAttr("clip", clip);
   opdesc.SetAttr("step_w", step_w);
   opdesc.SetAttr("step_h", step_h);
 
-  inferSshape(input, boxes, variances, fixed_ratios, density_sizes);
-  inferSshape(input, boxes_ref, variances_ref, fixed_ratios, density_sizes);
+  inferShape(input, boxes, variances, fixed_ratios, densities);
+  inferShape(input, boxes_ref, variances_ref, fixed_ratios, densities);
 
   auto op = CreateOp<operators::DensityPriorBoxOpLite>(opdesc, &scope);
   prior_density_box_ref(op);

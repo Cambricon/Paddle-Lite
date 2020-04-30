@@ -32,6 +32,7 @@ int FlattenConverter(void* ctx, OpLite* op, KernelBase* kernel) {
 
   auto x_var_name = op_info->Input("X").front();
   auto out_var_name = op_info->Output("Out").front();
+  auto x = scope->FindVar(x_var_name)->GetMutable<Tensor>();
   auto output = scope->FindVar(out_var_name)->GetMutable<Tensor>();
   auto output_dims = output->dims().Vectorize();
   auto output_tensor = graph->AddNode(
@@ -50,6 +51,22 @@ int FlattenConverter(void* ctx, OpLite* op, KernelBase* kernel) {
                                 input_tensor->mlu_tensor(),
                                 output_tensor->mlu_tensor()));
 
+  // ============== DEBUG LOG ===============
+  VLOG(6) << "x_var_name: " << x_var_name;
+  VLOG(6) << "out_var_name: " << out_var_name;
+  VLOG(6) << "input dim: " << x->dims();
+  VLOG(6) << "output dim: " << output->dims();
+  int cnml_input_shape[4];
+  CNML_CALL(cnmlGetTensorShape(input_tensor->mlu_tensor(), cnml_input_shape));
+  VLOG(6) << "cnml input dim: ";
+  for (size_t i = 0; i < 4; i++) {
+    VLOG(6) << cnml_input_shape[i];
+  }
+  VLOG(6) << "cnml out dim: ";
+  for (size_t i = 0; i < 4; i++) {
+    VLOG(6) << cnml_out_shape[i];
+  }
+  // ============== DEBUG END ===============
   // CNML_CALL(cnmlCreateReshapeOp_V2(
   //     &flatten_op,
   //     input_tensor->mlu_tensor(),
