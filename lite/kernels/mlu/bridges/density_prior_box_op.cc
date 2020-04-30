@@ -59,12 +59,12 @@ int DensityPriorBoxConverter(void* ctx, OpLite* op, KernelBase* kernel) {
   auto boxes_tensor = graph->AddNode(boxes_name,
                                      boxes_dims.Vectorize(),
                                      CNML_TENSOR,
-                                     CNML_NCHW,
+                                     CNML_NHWC,
                                      graph->FPType());
   auto variances_tensor = graph->AddNode(variances_name,
                                          variances_dims.Vectorize(),
                                          CNML_TENSOR,
-                                         CNML_NCHW,
+                                         CNML_NHWC,
                                          graph->FPType());
 
   bool float32_precision = false;
@@ -137,6 +137,11 @@ int DensityPriorBoxConverter(void* ctx, OpLite* op, KernelBase* kernel) {
   cnmlBaseOp_t density_prior_box_op;
   CNML_CALL(cnmlCreatePluginDensityPriorBoxOp(
       &density_prior_box_op, op_param, input_tensors, output_tensors));
+  // cnmlSetOperationComputingLayout(density_prior_box_op,CNML_NCHW);
+  // cnmlSetTensorComputingLayoutInOperation(
+  //     density_prior_box_op, boxes_tensor->mlu_tensor(), CNML_NCHW);
+  // cnmlSetTensorComputingLayoutInOperation(
+  //     density_prior_box_op, variances_tensor->mlu_tensor(), CNML_NCHW);
   graph->FuseOp(density_prior_box_op);
   return SUCCESS;
 }

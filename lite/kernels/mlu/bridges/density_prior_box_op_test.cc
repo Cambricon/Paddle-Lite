@@ -233,10 +233,10 @@ void test_prior_density_box(int feat_h,
   auto* variances_data = variances->mutable_data<float>();
   auto* variances_ref_data = variances_ref->mutable_data<float>();
 
-  ToFile(*variances, "var_mlu_before_trans.txt");
-  ToFile(*variances_ref, "var_cpu.txt");
-  ToFile(*boxes, "box_mlu_before_trans.txt");
-  ToFile(*boxes_ref, "box_cpu.txt");
+  // ToFile(*variances, "var_mlu_before_trans.txt");
+  // ToFile(*variances_ref, "var_cpu.txt");
+  // ToFile(*boxes, "box_mlu_before_trans.txt");
+  // ToFile(*boxes_ref, "box_cpu.txt");
   for (int i = 0; i < variances->dims().production(); i++) {
     VLOG(6) << i;
     EXPECT_NEAR(variances_data[i], variances_ref_data[i], 1e-5);
