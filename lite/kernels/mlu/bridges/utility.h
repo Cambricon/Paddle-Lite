@@ -16,9 +16,11 @@
 
 #include <cnml.h>
 #include <cnrt.h>
+
 #include <memory>
 #include <string>
 #include <vector>
+
 #include "lite/backends/mlu/mlu_utils.h"
 #include "lite/core/op_lite.h"
 #include "lite/core/tensor.h"
@@ -32,8 +34,15 @@ namespace mlu {
 void transpose2d(float* input_data,
                  float* output_data,
                  std::vector<int> input_shape);
+
 void transpose(float* input_data,
                float* output_data,
+               std::vector<int> input_shape,
+               std::vector<int> axis);
+
+template <typename dtype>
+void transpose(dtype* input_data,
+               dtype* output_data,
                std::vector<int> input_shape,
                std::vector<int> axis);
 
