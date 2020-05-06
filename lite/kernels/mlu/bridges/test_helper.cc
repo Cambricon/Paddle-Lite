@@ -105,6 +105,15 @@ void LaunchOp(const std::shared_ptr<lite::OpLite> op,
   }
 }
 
+void ToFile(Tensor tensor, std::string file_name) {
+  std::ofstream of;
+  of.open(file_name, std::ios::out);
+  for (size_t i = 0; i < tensor.dims().production(); i++) {
+    of << tensor.mutable_data<float>()[i] << std::endl;
+  }
+  of.close();
+}
+
 }  // namespace mlu
 }  // namespace subgraph
 }  // namespace lite

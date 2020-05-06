@@ -36,9 +36,22 @@ void test_reshape(std::vector<int64_t> input_shape,
   auto* x = scope.Var(x_var_name)->GetMutable<Tensor>();
   auto* out = scope.Var(out_var_name)->GetMutable<Tensor>();
   x->Resize(input_shape);
+  Tensor x_cpu;
 
   // initialize input&output data
   FillTensor<float, int>(x);
+  x_cpu.CopyDataFrom(*x);
+
+  Tensor input_trans;
+  input_trans.Resize(input_shape);
+  transpose(x->mutable_data<float>(),
+            input_trans.mutable_data<float>(),
+            {static_cast<int>(input_shape[0]),
+             static_cast<int>(input_shape[1]),
+             static_cast<int>(input_shape[2]),
+             static_cast<int>(input_shape[3])},
+            {0, 2, 3, 1});
+  x->CopyDataFrom(input_trans);
 
   // initialize op desc
   cpp::OpDesc opdesc;
@@ -56,19 +69,28 @@ void test_reshape(std::vector<int64_t> input_shape,
 
   auto os = out->dims();
   out->Resize(out_shape);
-
   LaunchOp(op, {x_var_name}, {out_var_name});
 
+  Tensor out_trans;
+  out_trans.Resize(out_shape);
+  transpose(out->mutable_data<float>(),
+            out_trans.mutable_data<float>(),
+            {static_cast<int>(out_shape[0]),
+             static_cast<int>(out_shape[1]),
+             static_cast<int>(out_shape[2]),
+             static_cast<int>(out_shape[3])},
+            {0, 3, 1, 2});
+  out->CopyDataFrom(out_trans);
   // compare results
-  // auto* out_data = out->mutable_data<float>();
-  // for (int i = 0; i < out->dims().production(); i++) {
-  //   EXPECT_NEAR(out_data[i], x->mutable_data<float>()[i], 1e-5);
-  // }
+  auto* out_data = out->mutable_data<float>();
+  for (int i = 0; i < out->dims().production(); i++) {
+    EXPECT_NEAR(out_data[i], x_cpu.mutable_data<float>()[i], 1e-5);
+  }
 }
 
 TEST(MLUBridges, reshape) {
   std::vector<int64_t> input_shape = {1, 2, 4, 4};
-  std::vector<int64_t> out_shape = {1, 2, 4, 4};
+  std::vector<int64_t> out_shape = {1, 4, 2, 4};
   test_reshape(input_shape, out_shape);
 }
 }  // namespace mlu

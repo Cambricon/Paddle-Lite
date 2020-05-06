@@ -24,20 +24,11 @@ namespace lite {
 namespace subgraph {
 namespace mlu {
 
-void ToFile(Tensor tensor, std::string file_name) {
-  std::ofstream of;
-  of.open(file_name, std::ios::out);
-  for (size_t i = 0; i < tensor.dims().production(); i++) {
-    of << tensor.mutable_data<float>()[i] << std::endl;
-  }
-  of.close();
-}
-
-void inferShape(Tensor* input,
-                Tensor* boxes,
-                Tensor* variances,
-                std::vector<float> fixed_ratios,
-                std::vector<int> densities) {
+void inferShape_(Tensor* input,
+                 Tensor* boxes,
+                 Tensor* variances,
+                 std::vector<float> fixed_ratios,
+                 std::vector<int> densities) {
   auto feat_height = input->dims()[2];
   auto feat_width = input->dims()[3];
 
@@ -214,8 +205,8 @@ void test_prior_density_box(int feat_h,
   opdesc.SetAttr("step_w", step_w);
   opdesc.SetAttr("step_h", step_h);
 
-  inferShape(input, boxes, variances, fixed_ratios, densities);
-  inferShape(input, boxes_ref, variances_ref, fixed_ratios, densities);
+  inferShape_(input, boxes, variances, fixed_ratios, densities);
+  inferShape_(input, boxes_ref, variances_ref, fixed_ratios, densities);
 
   auto op = CreateOp<operators::DensityPriorBoxOpLite>(opdesc, &scope);
   prior_density_box_ref(op);

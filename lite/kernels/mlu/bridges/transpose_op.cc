@@ -21,17 +21,6 @@ namespace lite {
 namespace subgraph {
 namespace mlu {
 
-std::vector<int> axis_to_nhwc(const std::vector<int>& axis) {
-  CHECK_EQ(axis.size(), 4) << "Unsupport dim in mlu transpose";
-  std::vector<int> new_axis(4, 0);
-  const std::vector<int> axis_map1 = {0, 2, 3, 1};
-  const std::vector<int> axis_map2 = {0, 3, 1, 2};
-  for (size_t i = 0; i < new_axis.size(); ++i) {
-    new_axis[i] = axis_map2[axis[axis_map1[i]]];
-  }
-  return new_axis;
-}
-
 int TransposeConverter(void* ctx, OpLite* op, KernelBase* kernel) {
   CHECK(ctx != nullptr);
   CHECK(op != nullptr);
@@ -54,7 +43,6 @@ int TransposeConverter(void* ctx, OpLite* op, KernelBase* kernel) {
   while (axis.size() < 4) {
     axis.push_back(axis.size());
   }
-  std::vector<int> axis_nhwc = axis_to_nhwc(axis);
 
   // =============== DEBUG LOG ======================
   VLOG(6) << "x_var_name :" << x_var_name;
@@ -65,31 +53,62 @@ int TransposeConverter(void* ctx, OpLite* op, KernelBase* kernel) {
   for (size_t i = 0; i < axis.size(); i++) {
     VLOG(6) << axis[i];
   }
-  VLOG(6) << "axis_nhwc :";
-  for (size_t i = 0; i < axis_nhwc.size(); i++) {
-    VLOG(6) << axis_nhwc[i];
-  }
   // =============== DEBUG END ======================
-  auto output_tensor = graph->AddNode(
-      out_var_name, output_dims, CNML_TENSOR, CNML_NCHW, graph->FPType());
-
   CHECK(graph->HasNode(x_var_name));
+
+  // ================== Trans1: NHWC => NCHW ===========================
   auto input_tensor = graph->GetNode(x_var_name);
-  cnmlBaseOp_t transpose_op{nullptr};
-
-  cnmlNdTransposeOpParam_t transpose_param{nullptr};
-
+  std::vector<int> nhwc_to_nchw_axis = {0, 3, 1, 2};
+  auto trans1_out = graph->AddNode(
+      x_var_name + ".trans", x_dims, CNML_TENSOR, CNML_NHWC, graph->FPType());
+  cnmlBaseOp_t trans1_op{nullptr};
+  cnmlNdTransposeOpParam_t trans1_param{nullptr};
   CNML_CALL(cnmlCreateNdTransposeOpParam(
-      &transpose_param, axis_nhwc.data(), axis_nhwc.size()));
+      &trans1_param, nhwc_to_nchw_axis.data(), nhwc_to_nchw_axis.size()));
+  CNML_CALL(cnmlCreateNdTransposeProOp(&trans1_op,
+                                       input_tensor->mlu_tensor(),
+                                       trans1_out->mlu_tensor(),
+                                       trans1_param));
+  // ======================== Trans1 End ==================================
 
+  // ======================= Transpose op ===================================
+  auto trans2_input = graph->AddNode(out_var_name + ".trans",
+                                     output_dims,
+                                     CNML_TENSOR,
+                                     CNML_NHWC,
+                                     graph->FPType());
+  cnmlBaseOp_t transpose_op{nullptr};
+  cnmlNdTransposeOpParam_t transpose_param{nullptr};
+  CNML_CALL(
+      cnmlCreateNdTransposeOpParam(&transpose_param, axis.data(), axis.size()));
   // Use cnmlCreatexxxOpForward to create op.
   CNML_CALL(cnmlCreateNdTransposeProOp(&transpose_op,
-                                       input_tensor->mlu_tensor(),
-                                       output_tensor->mlu_tensor(),
+                                       trans1_out->mlu_tensor(),
+                                       trans2_input->mlu_tensor(),
                                        transpose_param));
+  // ======================= Transpose op End
+  // ===================================
 
+  // ================== Trans2: NCHW => NHWC ===============================
+  std::vector<int> nchw_to_nhwc_axis = {0, 2, 3, 1};
+  auto output_tensor = graph->AddNode(
+      out_var_name, output_dims, CNML_TENSOR, CNML_NCHW, graph->FPType());
+  cnmlBaseOp_t trans2_op{nullptr};
+  cnmlNdTransposeOpParam_t trans2_param{nullptr};
+  CNML_CALL(cnmlCreateNdTransposeOpParam(
+      &trans2_param, nchw_to_nhwc_axis.data(), nchw_to_nhwc_axis.size()));
+  CNML_CALL(cnmlCreateNdTransposeProOp(&trans2_op,
+                                       trans2_input->mlu_tensor(),
+                                       output_tensor->mlu_tensor(),
+                                       trans2_param));
+  // ======================== Trans2 End ==================================
+
+  graph->FuseOp(trans1_op);
   graph->FuseOp(transpose_op);
+  graph->FuseOp(trans2_op);
+  CNML_CALL(cnmlDestroyBaseOp(&trans1_op));
   CNML_CALL(cnmlDestroyBaseOp(&transpose_op));
+  CNML_CALL(cnmlDestroyBaseOp(&trans2_op));
   VLOG(6) << "transpose convert finished";
   return SUCCESS;
 }

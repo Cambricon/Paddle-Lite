@@ -56,6 +56,8 @@ void FillTensor(Tensor* x,
   }
 }
 
+void ToFile(Tensor tensor, std::string file_name);
+
 void LaunchOp(const std::shared_ptr<lite::OpLite> op,
               const std::vector<std::string>& input_var_names,
               const std::vector<std::string>& output_var_names);

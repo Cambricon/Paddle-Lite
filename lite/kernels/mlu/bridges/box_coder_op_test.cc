@@ -24,17 +24,6 @@ namespace lite {
 namespace subgraph {
 namespace mlu {
 
-void ToFile(Tensor *tensor, std::string file_name) {
-  LOG(INFO) << file_name << " to file:" << std::endl;
-  std::ofstream of;
-  of.open(file_name, std::ios::out);
-  for (size_t i = 0; i < tensor->dims().production(); i++) {
-    // VLOG(6) <<  "i : " << i;
-    of << tensor->mutable_data<float>()[i] << std::endl;
-  }
-  of.close();
-}
-
 inline std::string BoxCodeTypeToStr(BoxCodeType code_type) {
   if (code_type == BoxCodeType::kEncodeCenterSize) {
     return "encode_center_size";
@@ -398,9 +387,9 @@ void test_box_coder(int row,
   LOG(INFO) << "target_box count : " << target_box->dims().production();
   LOG(INFO) << "box_var count : " << box_var->dims().production();
 
-  // ToFile(prior_box, "prior_box.txt");
-  // ToFile(box_var, "box_var.txt");
-  // ToFile(target_box, "target_box.txt");
+  // ToFile(*prior_box, "prior_box.txt");
+  // ToFile(*box_var, "box_var.txt");
+  // ToFile(*target_box, "target_box.txt");
 
   // initialize op desc
   cpp::OpDesc opdesc;
@@ -476,9 +465,9 @@ void test_box_coder(int row,
             {0, 3, 1, 2});
 
   output_data = output_trans.mutable_data<float>();
-  // ToFile(output_box, "output_mlu_before_trans.txt");
-  // ToFile(&output_trans, "output_mlu.txt");
-  // ToFile(output_box_ref, "output_cpu.txt");
+  // ToFile(*output_box, "output_mlu_before_trans.txt");
+  // ToFile(output_trans, "output_mlu.txt");
+  // ToFile(*output_box_ref, "output_cpu.txt");
   for (int i = 0; i < output_box->dims().production(); i++) {
     VLOG(6) << i;
     EXPECT_NEAR(output_data[i], output_ref_data[i], 1e-2);
