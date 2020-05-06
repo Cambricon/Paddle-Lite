@@ -28,31 +28,6 @@ namespace lite {
 namespace subgraph {
 namespace mlu {
 
-void transpose(int* input_data,
-               int* output_data,
-               std::vector<int> input_shape,
-               std::vector<int> axis) {
-  int old_index = -1;
-  int new_index = -1;
-  int dim[4] = {0};
-  std::vector<int> shape = input_shape;
-  for (dim[0] = 0; dim[0] < input_shape[0]; dim[0]++) {
-    for (dim[1] = 0; dim[1] < input_shape[1]; dim[1]++) {
-      for (dim[2] = 0; dim[2] < input_shape[2]; dim[2]++) {
-        for (dim[3] = 0; dim[3] < input_shape[3]; dim[3]++) {
-          old_index = dim[0] * shape[1] * shape[2] * shape[3] +
-                      dim[1] * shape[2] * shape[3] + dim[2] * shape[3] + dim[3];
-          new_index =
-              dim[axis[0]] * shape[axis[1]] * shape[axis[2]] * shape[axis[3]] +
-              dim[axis[1]] * shape[axis[2]] * shape[axis[3]] +
-              dim[axis[2]] * shape[axis[3]] + dim[axis[3]];
-          output_data[new_index] = input_data[old_index];
-        }
-      }
-    }
-  }
-}
-
 template <typename dtype>
 void argmax_ref(const std::shared_ptr<operators::ArgmaxOpLite> op) {
   Scope* scope = op->scope();
@@ -71,7 +46,7 @@ void argmax_ref(const std::shared_ptr<operators::ArgmaxOpLite> op) {
   auto out_dims = out->dims();
 
   auto* x_data = x->mutable_data<dtype>();
-  auto* out_data = out->mutable_data<int>();
+  auto* out_data = out->mutable_data<dtype>();
 
   const int size = x_dims[axis];
   const int in_channel = x_dims.count(axis, x_dims.size());
@@ -93,7 +68,7 @@ void argmax_ref(const std::shared_ptr<operators::ArgmaxOpLite> op) {
                         vec.end(),
                         std::greater<std::pair<float, int>>());
 
-      int* out_ptr = out_data + n * out_channel + k;
+      dtype* out_ptr = out_data + n * out_channel + k;
       *out_ptr = vec[0].second;
     }
   }
@@ -135,21 +110,21 @@ void test_argmax(const std::vector<int64_t>& input_shape, int axis) {
   x->CopyDataFrom(input_x);
 
   LaunchOp(op, {x_var_name}, {out_var_name});
-  auto* out_data = out->mutable_data<int>();
-  auto* out_ref_data = out_ref->mutable_data<int>();
+  auto* out_data = out->mutable_data<float>();
+  auto* out_ref_data = out_ref->mutable_data<float>();
   std::vector<int64_t> out_shape = input_shape;
   out_shape[axis] = 1;
   Tensor output_trans;
   output_trans.Resize(out_shape);
   // Change output layout from NHWC to NCHW
   transpose(out_data,
-            output_trans.mutable_data<int>(),
+            output_trans.mutable_data<float>(),
             {static_cast<int>(out_shape[0]),
              static_cast<int>(out_shape[2]),
              static_cast<int>(out_shape[3]),
              static_cast<int>(out_shape[1])},
             {0, 3, 1, 2});
-  out_data = output_trans.mutable_data<int>();
+  out_data = output_trans.mutable_data<float>();
 
   for (int i = 0; i < out->dims().production(); i++) {
     EXPECT_NEAR(out_data[i], out_ref_data[i], 1e-2);
