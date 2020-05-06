@@ -21,14 +21,14 @@
 
 #include "lite/core/op_registry.h"
 #include "lite/kernels/mlu/bridges/test_helper.h"
+#include "lite/kernels/mlu/bridges/utility.h"
 #include "lite/kernels/npu/bridges/registry.h"
-
 namespace paddle {
 namespace lite {
 namespace subgraph {
 namespace mlu {
 
-template <typename dtype>
+template <typename dtype, typename out_dtype>
 void argmax_ref(const std::shared_ptr<operators::ArgmaxOpLite> op) {
   Scope* scope = op->scope();
   const OpInfo* op_info = op->op_info();
@@ -46,7 +46,7 @@ void argmax_ref(const std::shared_ptr<operators::ArgmaxOpLite> op) {
   auto out_dims = out->dims();
 
   auto* x_data = x->mutable_data<dtype>();
-  auto* out_data = out->mutable_data<dtype>();
+  auto* out_data = out->mutable_data<out_dtype>();
 
   const int size = x_dims[axis];
   const int in_channel = x_dims.count(axis, x_dims.size());
@@ -68,7 +68,7 @@ void argmax_ref(const std::shared_ptr<operators::ArgmaxOpLite> op) {
                         vec.end(),
                         std::greater<std::pair<float, int>>());
 
-      dtype* out_ptr = out_data + n * out_channel + k;
+      out_dtype* out_ptr = out_data + n * out_channel + k;
       *out_ptr = vec[0].second;
     }
   }
@@ -95,36 +95,36 @@ void test_argmax(const std::vector<int64_t>& input_shape, int axis) {
 
   // create and convert op to MLU model, then run it on MLU
   auto op = CreateOp<operators::ArgmaxOpLite>(opdesc, &scope);
-  argmax_ref<float>(op);
+  argmax_ref<float, int>(op);
   out_ref->CopyDataFrom(*out);
   Tensor input_x;
   input_x.Resize(DDim(input_shape));
   // change input layout from NCHW to NHWC
-  transpose(x->mutable_data<float>(),
-            input_x.mutable_data<float>(),
-            {static_cast<int>(input_shape[0]),
-             static_cast<int>(input_shape[1]),
-             static_cast<int>(input_shape[2]),
-             static_cast<int>(input_shape[3])},
-            {0, 2, 3, 1});
+  transpose<float*>(x->mutable_data<float>(),
+                    input_x.mutable_data<float>(),
+                    {static_cast<int>(input_shape[0]),
+                     static_cast<int>(input_shape[1]),
+                     static_cast<int>(input_shape[2]),
+                     static_cast<int>(input_shape[3])},
+                    {0, 2, 3, 1});
   x->CopyDataFrom(input_x);
 
   LaunchOp(op, {x_var_name}, {out_var_name});
-  auto* out_data = out->mutable_data<float>();
-  auto* out_ref_data = out_ref->mutable_data<float>();
+  auto* out_data = out->mutable_data<int>();
+  auto* out_ref_data = out_ref->mutable_data<int>();
   std::vector<int64_t> out_shape = input_shape;
   out_shape[axis] = 1;
   Tensor output_trans;
   output_trans.Resize(out_shape);
   // Change output layout from NHWC to NCHW
-  transpose(out_data,
-            output_trans.mutable_data<float>(),
-            {static_cast<int>(out_shape[0]),
-             static_cast<int>(out_shape[2]),
-             static_cast<int>(out_shape[3]),
-             static_cast<int>(out_shape[1])},
-            {0, 3, 1, 2});
-  out_data = output_trans.mutable_data<float>();
+  transpose<int*>(out_data,
+                  output_trans.mutable_data<int>(),
+                  {static_cast<int>(out_shape[0]),
+                   static_cast<int>(out_shape[2]),
+                   static_cast<int>(out_shape[3]),
+                   static_cast<int>(out_shape[1])},
+                  {0, 3, 1, 2});
+  out_data = output_trans.mutable_data<int>();
 
   for (int i = 0; i < out->dims().production(); i++) {
     EXPECT_NEAR(out_data[i], out_ref_data[i], 1e-2);
