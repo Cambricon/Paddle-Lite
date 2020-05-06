@@ -39,7 +39,7 @@ int FlattenConverter(void* ctx, OpLite* op, KernelBase* kernel) {
   // ================== Trans1: NHWC => NCHW ===========================
   auto input_tensor = graph->GetNode(x_var_name);
   std::vector<int> nhwc_to_nchw_axis = {0, 3, 1, 2};
-  auto trans1_out = graph->AddNode(x_var_name + ".trans",
+  auto trans1_out = graph->AddNode(x_var_name + ".trans.i",
                                    x->dims().Vectorize(),
                                    CNML_TENSOR,
                                    CNML_NHWC,
@@ -56,7 +56,7 @@ int FlattenConverter(void* ctx, OpLite* op, KernelBase* kernel) {
 
   // ======================= Flatten op ===================================
   cnmlBaseOp_t flatten_op;
-  auto trans2_input = graph->AddNode(out_var_name + ".trans",
+  auto trans2_input = graph->AddNode(out_var_name + ".trans.o",
                                      output_dims,
                                      CNML_TENSOR,
                                      CNML_NHWC,
@@ -96,6 +96,15 @@ int FlattenConverter(void* ctx, OpLite* op, KernelBase* kernel) {
   VLOG(6) << "out_var_name: " << out_var_name;
   VLOG(6) << "input dim: " << x->dims();
   VLOG(6) << "output dim: " << output->dims();
+  int tmp_shape[4];
+  cnmlGetTensorShape(trans1_out->mlu_tensor(), tmp_shape);
+  VLOG(6) << "trans1_out shape"
+          << ": " << tmp_shape[0] << " " << tmp_shape[1] << " " << tmp_shape[2]
+          << " " << tmp_shape[3];
+  cnmlGetTensorShape(trans2_input->mlu_tensor(), tmp_shape);
+  VLOG(6) << "trans2_input shape"
+          << ": " << tmp_shape[0] << " " << tmp_shape[1] << " " << tmp_shape[2]
+          << " " << tmp_shape[3];
   // ============== DEBUG END ===============
   graph->FuseOp(trans1_op);
   graph->FuseOp(flatten_op);

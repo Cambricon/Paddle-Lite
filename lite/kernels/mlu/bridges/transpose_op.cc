@@ -44,23 +44,13 @@ int TransposeConverter(void* ctx, OpLite* op, KernelBase* kernel) {
     axis.push_back(axis.size());
   }
 
-  // =============== DEBUG LOG ======================
-  VLOG(6) << "x_var_name :" << x_var_name;
-  VLOG(6) << "x_dims :" << x->dims();
-  VLOG(6) << "out_var_name :" << out_var_name;
-  VLOG(6) << "output_dims :" << output->dims();
-  VLOG(6) << "axis :";
-  for (size_t i = 0; i < axis.size(); i++) {
-    VLOG(6) << axis[i];
-  }
-  // =============== DEBUG END ======================
   CHECK(graph->HasNode(x_var_name));
 
   // ================== Trans1: NHWC => NCHW ===========================
   auto input_tensor = graph->GetNode(x_var_name);
   std::vector<int> nhwc_to_nchw_axis = {0, 3, 1, 2};
   auto trans1_out = graph->AddNode(
-      x_var_name + ".trans", x_dims, CNML_TENSOR, CNML_NHWC, graph->FPType());
+      x_var_name + ".trans.i", x_dims, CNML_TENSOR, CNML_NHWC, graph->FPType());
   cnmlBaseOp_t trans1_op{nullptr};
   cnmlNdTransposeOpParam_t trans1_param{nullptr};
   CNML_CALL(cnmlCreateNdTransposeOpParam(
@@ -72,7 +62,7 @@ int TransposeConverter(void* ctx, OpLite* op, KernelBase* kernel) {
   // ======================== Trans1 End ==================================
 
   // ======================= Transpose op ===================================
-  auto trans2_input = graph->AddNode(out_var_name + ".trans",
+  auto trans2_input = graph->AddNode(out_var_name + ".trans.o",
                                      output_dims,
                                      CNML_TENSOR,
                                      CNML_NHWC,
@@ -102,6 +92,25 @@ int TransposeConverter(void* ctx, OpLite* op, KernelBase* kernel) {
                                        output_tensor->mlu_tensor(),
                                        trans2_param));
   // ======================== Trans2 End ==================================
+  // =============== DEBUG LOG ======================
+  VLOG(6) << "x_var_name :" << x_var_name;
+  VLOG(6) << "x_dims :" << x->dims();
+  VLOG(6) << "out_var_name :" << out_var_name;
+  VLOG(6) << "output_dims :" << output->dims();
+  VLOG(6) << "axis :";
+  for (size_t i = 0; i < axis.size(); i++) {
+    VLOG(6) << axis[i];
+  }
+  int tmp_shape[4];
+  cnmlGetTensorShape(trans1_out->mlu_tensor(), tmp_shape);
+  VLOG(6) << "trans1_out shape"
+          << ": " << tmp_shape[0] << " " << tmp_shape[1] << " " << tmp_shape[2]
+          << " " << tmp_shape[3];
+  cnmlGetTensorShape(trans2_input->mlu_tensor(), tmp_shape);
+  VLOG(6) << "trans2_input shape"
+          << ": " << tmp_shape[0] << " " << tmp_shape[1] << " " << tmp_shape[2]
+          << " " << tmp_shape[3];
+  // =============== DEBUG END ======================
 
   graph->FuseOp(trans1_op);
   graph->FuseOp(transpose_op);

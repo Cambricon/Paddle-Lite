@@ -218,6 +218,28 @@ void test_prior_density_box(int feat_h,
 
   // execute reference implementation and save to output tensor('out')
 
+  // ===================== Trans From NHWC to NCHW ====================
+  Tensor boxes_trans;
+  boxes_trans.Resize(boxes->dims().Vectorize());
+  transpose(boxes->mutable_data<float>(),
+            boxes_trans.mutable_data<float>(),
+            {static_cast<int>(boxes->dims()[0]),
+             static_cast<int>(boxes->dims()[2]),
+             static_cast<int>(boxes->dims()[3]),
+             static_cast<int>(boxes->dims()[1])},
+            {0, 3, 1, 2});
+  boxes->CopyDataFrom(boxes_trans);
+  Tensor vars_trans;
+  vars_trans.Resize(variances->dims().Vectorize());
+  transpose(variances->mutable_data<float>(),
+            vars_trans.mutable_data<float>(),
+            {static_cast<int>(variances->dims()[0]),
+             static_cast<int>(variances->dims()[2]),
+             static_cast<int>(variances->dims()[3]),
+             static_cast<int>(variances->dims()[1])},
+            {0, 3, 1, 2});
+  variances->CopyDataFrom(vars_trans);
+
   // compare results
   auto* boxes_data = boxes->mutable_data<float>();
   auto* boxes_ref_data = boxes_ref->mutable_data<float>();

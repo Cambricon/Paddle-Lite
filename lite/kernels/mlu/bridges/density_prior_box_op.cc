@@ -77,16 +77,17 @@ int DensityPriorBoxConverter(void* ctx, OpLite* op, KernelBase* kernel) {
 
   auto feat_tensor = graph->GetNode(input_name);
   auto image_tensor = graph->GetNode(image_name);
-  auto boxes_tensor = graph->AddNode(boxes_name,
-                                     boxes_dims.Vectorize(),
-                                     CNML_TENSOR,
-                                     CNML_NHWC,
-                                     graph->FPType());
-  auto variances_tensor = graph->AddNode(variances_name,
-                                         variances_dims.Vectorize(),
-                                         CNML_TENSOR,
-                                         CNML_NHWC,
-                                         graph->FPType());
+
+  auto boxes_tensor_trans = graph->AddNode(boxes_name + ".trans.boxes",
+                                           boxes_dims.Vectorize(),
+                                           CNML_TENSOR,
+                                           CNML_NHWC,
+                                           graph->FPType());
+  auto variances_tensor_trans = graph->AddNode(variances_name + ".trans.vars",
+                                               variances_dims.Vectorize(),
+                                               CNML_TENSOR,
+                                               CNML_NHWC,
+                                               graph->FPType());
 
   bool float32_precision = false;
   if (graph->FPType() == CNML_DATA_FLOAT32) {
@@ -125,15 +126,16 @@ int DensityPriorBoxConverter(void* ctx, OpLite* op, KernelBase* kernel) {
   VLOG(6) << "clip : " << clip;
 
   int cnml_boxes_shape[4];
-  CNML_CALL(cnmlGetTensorShape(boxes_tensor->mlu_tensor(), cnml_boxes_shape));
+  CNML_CALL(
+      cnmlGetTensorShape(boxes_tensor_trans->mlu_tensor(), cnml_boxes_shape));
   VLOG(6) << "cnml_boxes_shape";
   for (size_t i = 0; i < 4; i++) {
     VLOG(6) << cnml_boxes_shape[i];
   }
   int cnml_vars_shape[4];
   VLOG(6) << "cnml_vars_shape";
-  CNML_CALL(
-      cnmlGetTensorShape(variances_tensor->mlu_tensor(), cnml_vars_shape));
+  CNML_CALL(cnmlGetTensorShape(variances_tensor_trans->mlu_tensor(),
+                               cnml_vars_shape));
   for (size_t i = 0; i < 4; i++) {
     VLOG(6) << cnml_vars_shape[i];
   }
@@ -167,17 +169,53 @@ int DensityPriorBoxConverter(void* ctx, OpLite* op, KernelBase* kernel) {
   input_tensors[0] = feat_tensor->mlu_tensor();
   input_tensors[1] = image_tensor->mlu_tensor();
   cnmlTensor_t output_tensors[2];
-  output_tensors[0] = boxes_tensor->mlu_tensor();
-  output_tensors[1] = variances_tensor->mlu_tensor();
+  output_tensors[0] = boxes_tensor_trans->mlu_tensor();
+  output_tensors[1] = variances_tensor_trans->mlu_tensor();
   cnmlBaseOp_t density_prior_box_op;
   CNML_CALL(cnmlCreatePluginDensityPriorBoxOp(
       &density_prior_box_op, op_param, input_tensors, output_tensors));
+
+  std::vector<int> nchw_to_nhwc_axis = {0, 2, 3, 1};
+  // ============== Boxes Trans =======================
+  auto boxes_tensor = graph->AddNode(boxes_name,
+                                     boxes_dims.Vectorize(),
+                                     CNML_TENSOR,
+                                     CNML_NCHW,
+                                     graph->FPType());
+  cnmlBaseOp_t trans_boxes_op{nullptr};
+  cnmlNdTransposeOpParam_t trans_boxes_param{nullptr};
+  CNML_CALL(cnmlCreateNdTransposeOpParam(
+      &trans_boxes_param, nchw_to_nhwc_axis.data(), nchw_to_nhwc_axis.size()));
+  CNML_CALL(cnmlCreateNdTransposeProOp(&trans_boxes_op,
+                                       boxes_tensor_trans->mlu_tensor(),
+                                       boxes_tensor->mlu_tensor(),
+                                       trans_boxes_param));
+  // ============== Boxes Trans End ===================
+
+  // ============== Vars Trans =======================
+  auto variances_tensor = graph->AddNode(variances_name,
+                                         variances_dims.Vectorize(),
+                                         CNML_TENSOR,
+                                         CNML_NCHW,
+                                         graph->FPType());
+  cnmlBaseOp_t trans_vars_op{nullptr};
+  cnmlNdTransposeOpParam_t trans_vars_param{nullptr};
+  CNML_CALL(cnmlCreateNdTransposeOpParam(
+      &trans_vars_param, nchw_to_nhwc_axis.data(), nchw_to_nhwc_axis.size()));
+  CNML_CALL(cnmlCreateNdTransposeProOp(&trans_vars_op,
+                                       variances_tensor_trans->mlu_tensor(),
+                                       variances_tensor->mlu_tensor(),
+                                       trans_vars_param));
+  // ============== Vars Trans End ===================
+
   // cnmlSetOperationComputingLayout(density_prior_box_op,CNML_NCHW);
   // cnmlSetTensorComputingLayoutInOperation(
   //     density_prior_box_op, boxes_tensor->mlu_tensor(), CNML_NCHW);
   // cnmlSetTensorComputingLayoutInOperation(
   //     density_prior_box_op, variances_tensor->mlu_tensor(), CNML_NCHW);
+  graph->FuseOp(trans_boxes_op);
   graph->FuseOp(density_prior_box_op);
+  graph->FuseOp(trans_vars_op);
   return SUCCESS;
 }
 
