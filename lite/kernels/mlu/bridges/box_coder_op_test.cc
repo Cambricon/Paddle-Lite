@@ -24,21 +24,21 @@ namespace lite {
 namespace subgraph {
 namespace mlu {
 
-inline std::string BoxCodeTypeToStr(BoxCodeType code_type) {
-  if (code_type == BoxCodeType::kEncodeCenterSize) {
+inline std::string BoxCodeTypeToStr(cnmlBoxCodeType_t code_type) {
+  if (code_type == cnmlBoxCodeType_t::Encode) {
     return "encode_center_size";
-  } else if (code_type == BoxCodeType::kDecodeCenterSize) {
+  } else if (code_type == cnmlBoxCodeType_t::Decode) {
     return "decode_center_size";
   } else {
     CHECK(false);
   }
 }
 
-inline BoxCodeType GetBoxCodeType(const std::string &type) {
+inline cnmlBoxCodeType_t GetBoxCodeType(const std::string &type) {
   if (type == "encode_center_size") {
-    return BoxCodeType::kEncodeCenterSize;
+    return cnmlBoxCodeType_t::Encode;
   } else if (type == "decode_center_size") {
-    return BoxCodeType::kDecodeCenterSize;
+    return cnmlBoxCodeType_t::Decode;
   } else {
     CHECK(false);
   }
@@ -179,7 +179,7 @@ void DecodeCenterSize(float *target_box_data,
   }
 }
 
-void Compute(BoxCodeType code_type,
+void Compute(cnmlBoxCodeType_t code_type,
              lite::Tensor *prior_box,
              lite::Tensor *target_box,
              lite::Tensor *box_var,
@@ -209,7 +209,7 @@ void Compute(BoxCodeType code_type,
   auto target_box_shape = target_box->dims().Vectorize();
   auto prior_box_shape = prior_box->dims().Vectorize();
   auto prior_box_var_shape = box_var->dims().Vectorize();
-  if (code_type == BoxCodeType::kEncodeCenterSize) {
+  if (code_type == cnmlBoxCodeType_t::Encode) {
     EncodeCenterSize(target_box_data,
                      prior_box_data,
                      prior_box_var_data,
@@ -219,7 +219,7 @@ void Compute(BoxCodeType code_type,
                      normalized,
                      variance,
                      output_data);
-  } else if (code_type == BoxCodeType::kDecodeCenterSize) {
+  } else if (code_type == cnmlBoxCodeType_t::Decode) {
     if (prior_box_var_data) {
       LOG(INFO) << "prior_box_var_data not null" << std::endl;
       if (axis == 0) {
@@ -328,7 +328,7 @@ void test_box_coder(int row,
                     int col,
                     int len,
                     int axis,
-                    BoxCodeType code_type,
+                    cnmlBoxCodeType_t code_type,
                     bool box_normalized) {
   // prepare input&output variables
   Scope scope;
@@ -343,14 +343,14 @@ void test_box_coder(int row,
   auto *output_box = scope.Var(output_box_var_name)->GetMutable<Tensor>();
   auto *output_box_ref = scope.Var(output_ref_var_name)->GetMutable<Tensor>();
 
-  if (code_type == BoxCodeType::kEncodeCenterSize) {
+  if (code_type == cnmlBoxCodeType_t::Encode) {
     // target_box_shape = {row, len};
     // prior_box_shape = {col, len};
     // output_shape = {row, col, len};
     target_box->Resize({row, len});
     prior_box->Resize({col, len});
     box_var->Resize({col, len});
-  } else if (code_type == BoxCodeType::kDecodeCenterSize) {
+  } else if (code_type == cnmlBoxCodeType_t::Decode) {
     // target_box_shape = {row,col,len};
     // prior_box_shape = {col, len} if axis == 0, or {row, len};
     // output_shape = {row, col, len};
@@ -479,7 +479,7 @@ TEST(MLUBridges, prior_density_box) {
   int col = 20560;
   int len = 4;
   int axis = 0;
-  BoxCodeType code_type = BoxCodeType::kDecodeCenterSize;
+  cnmlBoxCodeType_t code_type = cnmlBoxCodeType_t::Decode;
   bool box_normalized = true;
   test_box_coder(row, col, len, axis, code_type, box_normalized);
 }

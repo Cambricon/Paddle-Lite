@@ -21,15 +21,11 @@ namespace lite {
 namespace subgraph {
 namespace mlu {
 
-inline BoxCodeType GetBoxCodeType(const std::string& type) {
+inline cnmlBoxCodeType_t GetBoxCodeType(const std::string& type) {
   if (type == "encode_center_size") {
-    return BoxCodeType::kEncodeCenterSize;
-  } else if (type == "decode_center_size") {
-    return BoxCodeType::kDecodeCenterSize;
-  } else {
-    CHECK(false) << "ERROR type,expect one of encode_center_size &  "
-                    "decode_center_size, but got %s\n";
+    return cnmlBoxCodeType_t::Encode;
   }
+  return cnmlBoxCodeType_t::Decode;
 }
 
 int BoxCoderConverter(void* ctx, OpLite* op, KernelBase* kernel) {
@@ -75,19 +71,19 @@ int BoxCoderConverter(void* ctx, OpLite* op, KernelBase* kernel) {
       VLOG(6) << variance_vec[i];
     }
   }
-  BoxCodeType code_type = GetBoxCodeType(code_type_str);
+  cnmlBoxCodeType_t code_type = GetBoxCodeType(code_type_str);
 
   int row = -1;
   int len = -1;
   int col = -1;
-  if (code_type == BoxCodeType::kEncodeCenterSize) {
+  if (code_type == cnmlBoxCodeType_t::Encode) {
     // target_box_shape = {row, len};
     // prior_box_shape = {col, len};
     // output_shape = {row, col, len};
     row = target_box->dims()[0];
     len = target_box->dims()[1];
     col = prior_box->dims()[0];
-  } else if (code_type == BoxCodeType::kDecodeCenterSize) {
+  } else if (code_type == cnmlBoxCodeType_t::Decode) {
     // target_box_shape = {row,col,len};
     // prior_box_shape = {col, len} if axis == 0, or {row, len};
     // output_shape = {row, col, len};
@@ -132,23 +128,31 @@ int BoxCoderConverter(void* ctx, OpLite* op, KernelBase* kernel) {
                                          CNML_TENSOR,
                                          CNML_NCHW,
                                          graph->FPType());
-
+  cnmlPluginBoxCoderOpParam_t param;
+  CNML_CALL(
+      cnmlCreatePluginBoxCoderOpParam(&param,
+                                      row,
+                                      col,
+                                      len,
+                                      axis,
+                                      box_normalized,
+                                      float32_precision,
+                                      code_type,
+                                      TargetWrapperMlu::MLUCoreVersion()));
   cnmlBaseOp_t box_coder_op;
-  CNML_CALL(cnmlCreatePluginBoxCoderOp(&box_coder_op,
-                                       target_box_tensor->mlu_tensor(),
-                                       prior_box_tensor->mlu_tensor(),
-                                       box_var_tensor->mlu_tensor(),
-                                       proposals_tensor->mlu_tensor(),
-                                       row,
-                                       col,
-                                       len,
-                                       axis,
-                                       box_normalized,
-                                       float32_precision,
-                                       code_type));
+  cnmlTensor_t input_tensors[3];
+  input_tensors[0] = target_box_tensor->mlu_tensor();
+  input_tensors[1] = prior_box_tensor->mlu_tensor();
+  input_tensors[2] = box_var_tensor->mlu_tensor();
+  cnmlTensor_t output_tensors[1];
+  output_tensors[0] = proposals_tensor->mlu_tensor();
+  CNML_CALL(cnmlCreatePluginBoxCoderOp(
+      &box_coder_op, param, input_tensors, output_tensors));
+
   // CNML_CALL(cnmlSetOperationComputingLayout(box_coder_op, CNML_NCHW)); //
   // important
   graph->FuseOp(box_coder_op);
+  cnmlDestroyPluginBoxCoderOpParam(&param);
   return SUCCESS;
 }
 

@@ -163,7 +163,8 @@ int DensityPriorBoxConverter(void* ctx, OpLite* op, KernelBase* kernel) {
                                          step_w,
                                          step_h,
                                          offset,
-                                         float32_precision);
+                                         float32_precision,
+                                         TargetWrapperMlu::MLUCoreVersion());
 
   cnmlTensor_t input_tensors[2];
   input_tensors[0] = feat_tensor->mlu_tensor();
@@ -216,6 +217,7 @@ int DensityPriorBoxConverter(void* ctx, OpLite* op, KernelBase* kernel) {
   graph->FuseOp(trans_boxes_op);
   graph->FuseOp(density_prior_box_op);
   graph->FuseOp(trans_vars_op);
+  // cnmlDestroyPluginDensityPriorBoxOpParam(&op_param);
   return SUCCESS;
 }
 
