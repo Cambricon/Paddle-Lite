@@ -492,9 +492,9 @@ void MLUPostprocessPass::GatherAndModifyFirstConvNodes(SSAGraph* graph) {
 }
 
 void MLUPostprocessPass::ModifyInputOutputDataType(SSAGraph* graph) {
-  for (auto& node : graph->mutable_nodes()) {
-    if (node.IsStmt() && node.AsStmt().op_type() == "subgraph") {
-      for (auto& in_node : node.inlinks) {
+  for (auto& node : graph->StmtTopologicalOrder()) {
+    if (node->AsStmt().op_type() == "subgraph") {
+      for (auto& in_node : node->inlinks) {
         const auto* in_node_type = in_node->AsArg().type;
         VLOG(4) << "MLU subgraph input type: " << in_node->AsArg().name
                 << *in_node_type;
@@ -513,7 +513,7 @@ void MLUPostprocessPass::ModifyInputOutputDataType(SSAGraph* graph) {
               << "MLU subgraph unexpected common input type!";
         }
       }
-      for (auto& out_node : node.outlinks) {
+      for (auto& out_node : node->outlinks) {
         const auto* out_node_type = out_node->AsArg().type;
         VLOG(4) << "MLU subgraph output type: " << out_node->AsArg().name
                 << *out_node_type;
