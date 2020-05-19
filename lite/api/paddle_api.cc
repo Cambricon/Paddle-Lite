@@ -108,7 +108,8 @@ void Tensor::CopyToCpu(T *data) const {
   int64_t num = tensor(raw_tensor_)->numel();
   CHECK(num > 0) << "You should call Resize interface first";
   auto type = tensor(raw_tensor_)->target();
-  if (type == TargetType::kHost || type == TargetType::kARM) {
+  if (type == TargetType::kHost || type == TargetType::kARM ||
+      type == TargetType::kMLU) {
     lite::TargetWrapperHost::MemcpySync(
         data, src_data, num * sizeof(T), lite::IoDirection::HtoH);
   } else if (type == TargetType::kCUDA) {
@@ -122,6 +123,45 @@ void Tensor::CopyToCpu(T *data) const {
     LOG(FATAL) << "The CopyToCpu interface just support kHost, kARM, kCUDA";
   }
 }
+
+#ifdef LITE_WITH_MLU
+template <>
+void Tensor::CopyFromCpu<int, TargetType::kMLU>(const int *src_data) {
+  int *data = tensor(raw_tensor_)->mutable_data<int>();
+  int64_t num = tensor(raw_tensor_)->numel();
+  lite::TargetWrapperHost::MemcpySync(
+      data, src_data, num * sizeof(int), lite::IoDirection::HtoH);
+}
+
+template <>
+void Tensor::CopyFromCpu<float, TargetType::kMLU>(const float *src_data) {
+  float *data = tensor(raw_tensor_)->mutable_data<float>();
+  int64_t num = tensor(raw_tensor_)->numel();
+  lite::TargetWrapperHost::MemcpySync(
+      data, src_data, num * sizeof(float), lite::IoDirection::HtoH);
+}
+
+template <>
+void Tensor::CopyFromCpu<int8_t, TargetType::kMLU>(const int8_t *src_data) {
+  int8_t *data = tensor(raw_tensor_)->mutable_data<int8_t>();
+  int64_t num = tensor(raw_tensor_)->numel();
+  lite::TargetWrapperHost::MemcpySync(
+      data, src_data, num * sizeof(int8_t), lite::IoDirection::HtoH);
+}
+
+template <>
+void Tensor::CopyFromCpu<uint8_t, TargetType::kMLU>(const uint8_t *src_data) {
+  uint8_t *data = tensor(raw_tensor_)->mutable_data<uint8_t>();
+  int64_t num = tensor(raw_tensor_)->numel();
+  lite::TargetWrapperHost::MemcpySync(
+      data, src_data, num * sizeof(uint8_t), lite::IoDirection::HtoH);
+}
+
+template void Tensor::CopyFromCpu<int, TargetType::kMLU>(const int *);
+template void Tensor::CopyFromCpu<float, TargetType::kMLU>(const float *);
+template void Tensor::CopyFromCpu<int8_t, TargetType::kMLU>(const int8_t *);
+template void Tensor::CopyFromCpu<uint8_t, TargetType::kMLU>(const uint8_t *);
+#endif  // WITH_MLU
 
 template void Tensor::CopyFromCpu<int, TargetType::kHost>(const int *);
 template void Tensor::CopyFromCpu<float, TargetType::kHost>(const float *);
