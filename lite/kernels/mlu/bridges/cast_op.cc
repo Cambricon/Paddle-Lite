@@ -21,7 +21,7 @@ namespace lite {
 namespace subgraph {
 namespace mlu {
 
-int SoftmaxConverter(void* ctx, OpLite* op, KernelBase* kernel) {
+int CastConverter(void* ctx, OpLite* op, KernelBase* kernel) {
   CHECK(ctx != nullptr);
   CHECK(op != nullptr);
   auto graph = static_cast<Graph*>(ctx);
@@ -30,39 +30,38 @@ int SoftmaxConverter(void* ctx, OpLite* op, KernelBase* kernel) {
   auto scope = op->scope();
   VLOG(3) << "[MLU] Converting " + op_type + "...";
 
-  // Get op's attributes
   auto x_var_name = op_info->Input("X").front();
   auto out_var_name = op_info->Output("Out").front();
   auto output = scope->FindVar(out_var_name)->GetMutable<Tensor>();
   auto output_dims = output->dims().Vectorize();
-  auto x_shape =
-      scope->FindVar(x_var_name)->GetMutable<Tensor>()->dims().Vectorize();
+  auto in_dtype = op_info->GetAttr<int>("in_dtype");
+  auto out_dtype = op_info->GetAttr<int>("out_dtype");
 
-  // nchw axis to nhwc aixs
-  std::vector<int> nchw2nhwc_axis(x_shape.size());
-  nchw2nhwc_axis[0] = 0;
-  if (x_shape.size() > 1) nchw2nhwc_axis[1] = x_shape.size() - 1;
-  for (size_t i = 2; i < x_shape.size(); ++i) {
-    nchw2nhwc_axis[i] = i - 1;
+  CHECK(graph->HasNode(x_var_name));
+  auto x_tensor = graph->GetNode(x_var_name);
+
+  cnmlDataType_t out_type;
+  cnmlCastType_t cast_type;
+  if (in_dtype == 4 && out_dtype == 5) {
+    cast_type = CNML_CAST_FLOAT16_TO_FLOAT32;
+    out_type = CNML_DATA_FLOAT32;
+  } else if (in_dtype == 5 && out_dtype == 4) {
+    cast_type = CNML_CAST_FLOAT32_TO_FLOAT16;
+    out_type = CNML_DATA_FLOAT16;
+  } else {
+    CHECK(0) << "Unsupported cast type";
   }
-  int axis = 1;
-  if (op_info->HasAttr("axis")) {
-    axis = op_info->GetAttr<int>("axis");
-    if (axis < 0) {
-      axis = output_dims.size() + axis;
-    }
-  }
-  int nhwc_axis = nchw2nhwc_axis[axis];
 
   auto output_tensor = graph->AddNode(
-      out_var_name, output_dims, CNML_TENSOR, CNML_NCHW, graph->FPType());
-  cnmlBaseOp_t softmax_op;
-  CNML_CALL(cnmlCreateNdSoftmaxOp(&softmax_op,
-                                  nhwc_axis,
-                                  graph->GetNode(x_var_name)->mlu_tensor(),
-                                  output_tensor->mlu_tensor()));
-  graph->FuseOp(softmax_op);
-  CNML_CALL(cnmlDestroyBaseOp(&softmax_op));
+      out_var_name, output_dims, CNML_TENSOR, CNML_NCHW, out_type);
+
+  cnmlBaseOp_t cast_op;
+  CNML_CALL(cnmlCreateCastOp(&cast_op,
+                             cast_type,
+                             x_tensor->mlu_tensor(),
+                             output_tensor->mlu_tensor()));
+  graph->FuseOp(cast_op);
+  CNML_CALL(cnmlDestroyBaseOp(&cast_op));
   return SUCCESS;
 }
 
@@ -71,6 +70,6 @@ int SoftmaxConverter(void* ctx, OpLite* op, KernelBase* kernel) {
 }  // namespace lite
 }  // namespace paddle
 
-REGISTER_SUBGRAPH_BRIDGE(softmax,
+REGISTER_SUBGRAPH_BRIDGE(cast,
                          kMLU,
-                         paddle::lite::subgraph::mlu::SoftmaxConverter);
+                         paddle::lite::subgraph::mlu::CastConverter);
