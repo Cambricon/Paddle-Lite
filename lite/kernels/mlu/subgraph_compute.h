@@ -15,6 +15,7 @@
 #pragma once
 
 #include <algorithm>
+#include <fstream>
 #include <map>
 #include <memory>
 #include <string>
@@ -58,6 +59,15 @@ class SubgraphEngine : public subgraph::Engine {
     if (GetBoolFromEnv("PADDLE_LITE_MLU_DISABLE_BATCH_SIZE_CHANGEABLE")) {
       disable_batch_size_changeable_ = true;
     }
+    run_times_ = 0;
+    build_times_ = 0;
+  }
+
+  ~SubgraphEngine() {
+    std::ofstream fout("/tmp/graph_num.txt");
+    fout << build_times_ << std::endl;
+    fout << (run_times_ - build_times_) << std::endl;
+    fout.close();
   }
 
   int Build() {
@@ -76,8 +86,10 @@ class SubgraphEngine : public subgraph::Engine {
         subgraph::CHECK_REBUILD_WHEN_SHAPE_CHANGED(
             build_device_program_status_) &&
         InputShapeChanged()) {
+      build_times_++;
       Build();
     }
+    run_times_++;
     if (subgraph::CHECK_FAILED(build_device_program_status_)) {
       LaunchOriginProgram();
     } else {
@@ -117,7 +129,7 @@ class SubgraphEngine : public subgraph::Engine {
       case paddle::lite_api::PrecisionType::kInt32:
         return CNML_DATA_INT32;
       case paddle::lite_api::PrecisionType::kInt8:
-        return CNML_DATA_INT8;
+        return CNML_DATA_UINT8;
       default:
         return PrecisionToDatatype(fp_type_);
     }
@@ -472,6 +484,8 @@ class SubgraphEngine : public subgraph::Engine {
   // BATCH_SIZE_CHANGEABLE
   std::map<std::vector<std::vector<int64_t>>, std::vector<std::vector<int64_t>>>
       in_out_shape_map_{};
+  int run_times_;
+  int build_times_;
 };
 
 template <PrecisionType Precision>
