@@ -58,7 +58,7 @@ class Graph {
       total_time += f;
     }
     std::cout << "cnml hardware time for " << time_log_.size()
-              << " process:" << total_time / time_log_.size() << std::endl;
+              << " process: " << total_time / time_log_.size() << std::endl;
 #endif
   }
   // Data node
