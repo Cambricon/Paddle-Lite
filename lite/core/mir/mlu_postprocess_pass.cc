@@ -705,13 +705,6 @@ std::pair<bool, std::string> CheckOutputAndInsert(
   cpp::OpDesc *layout_op = nullptr, *cast_op = nullptr;
 
   // subgraph -> cast -> layout -> output
-  if (!PrecisionCompatible(*tensor_type, *subgraph_type)) {
-    cast_op = block_desc->AddOp<cpp::OpDesc>();
-    cast_op->SetType("cast");
-    cast_op->SetAttr<int>("in_dtype", 4);   // FP16
-    cast_op->SetAttr<int>("out_dtype", 5);  // FP32
-    do_insert = true;
-  }
 
   if (!DataLayoutCompatible(*tensor_type, *subgraph_type)) {
     auto layout_arg_name = string_format("%s/layout", cur_node.c_str());
@@ -726,7 +719,12 @@ std::pair<bool, std::string> CheckOutputAndInsert(
     do_insert = true;
   }
 
-  if (cast_op) {
+  if (!PrecisionCompatible(*tensor_type, *subgraph_type)) {
+    cast_op = block_desc->AddOp<cpp::OpDesc>();
+    cast_op->SetType("cast");
+    cast_op->SetAttr<int>("in_dtype", 4);   // FP16
+    cast_op->SetAttr<int>("out_dtype", 5);  // FP32
+    do_insert = true;
     auto cast_arg_name = string_format("%s/cast", cur_node.c_str());
     scope->Var(cast_arg_name);
     VLOG(5) << "insert cast for subgraph output, arg tensor name: "
