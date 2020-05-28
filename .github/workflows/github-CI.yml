@@ -67,6 +67,12 @@ jobs:
         [ `awk  'BEGIN {min=65536} /detected.*subgraph/ {if($6<min) min=$6 fi} END {print min}' log` -eq 1 ]
         # [ `awk -v num=0 -v last=0 'BEGIN{} /average preprocess time/ {last=last*10+num; num=0} /START TO CONVERT/ {num++} END{print last}' log` -eq 171 ]
         [ `awk -v num=0 -v result=0 'BEGIN{} /compile_times/ {if($2!=num) result++; num=0 fi} /START TO CONVERT/ {num++} END{print result}' log` -eq 0 ]
+    - name: test_classification_resnet50_without_batchsize_changeble
+        cd /home/jiaopu/actions-runner/_work/Paddle-Lite/Paddle-Lite-models/classification
+        PADDLE_LITE_MLU_DISABLE_BATCH_SIZE_CHANGEABLE=true ./classification_demo --gtest_filter="classification_test.resnet50" &> log
+        [ `awk  'BEGIN {min=65536} /detected.*subgraph/ {if($6<min) min=$6 fi} END {print min}' log` -eq 1 ]
+        # [ `awk -v num=0 -v last=0 'BEGIN{} /average preprocess time/ {last=last*10+num; num=0} /START TO CONVERT/ {num++} END{print last}' log` -eq 171 ]
+        [ `awk -v num=0 -v result=0 'BEGIN{} /compile_times/ {if($2!=num) result++; num=0 fi} /START TO CONVERT/ {num++} END{print result}' log` -eq 0 ]
     - name: test_classification_resnet101
       run: |
         cd /home/jiaopu/actions-runner/_work/Paddle-Lite/Paddle-Lite-models/classification
@@ -88,7 +94,7 @@ jobs:
         [ `awk  'BEGIN {min=65536} /detected.*subgraph/ {if($6<min) min=$6 fi} END {print min}' log` -eq 1 ]
         hardware_time=`awk '/hardware.*101/ {print $7}' log` && [ `awk -v a=$hardware_time -v b=4 'BEGIN{print(a<b)?"0":"1"}'` -eq 0 ]
         # tmp=`grep -o "START TO CONVERT" log | wc -l` && [ $tmp -eq 2 ]
-        [ `awk -v num=0 -v result=0 'BEGIN{} /compile_times/ {if($2!=num) result++; num=0 fi} /START TO CONVERT/ {num++} END{print result}' log` -eq 0 ]
+        [ `awk -v num=0 -v result=0 'BEGIN{} /compile_times/ {if($2!=num) result++; num=0 fi} /START TO CONVERT/ {num++} /build batch_size changeable subgraph op failed/ {num--}END{print result}' log` -eq 0 ]
     - name: test_classification_MobileNet
       run: |
         cd /home/jiaopu/actions-runner/_work/Paddle-Lite/Paddle-Lite-models/classification

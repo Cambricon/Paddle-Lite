@@ -135,7 +135,7 @@ class SubgraphEngine : public subgraph::Engine {
         return status;
       }
       LOG(INFO) << "[MLU] build batch_size changeable subgraph op failed, "
-                 "changed to input_shape changeable";
+                   "changed to input_shape changeable";
     }
     error_compile_batch_size_changeable_ = true;
     disable_batch_size_changeable_ = true;
