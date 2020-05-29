@@ -13,9 +13,11 @@
 // limitations under the License.
 
 #include "lite/kernels/x86/roi_align_compute.h"
+
 #include <cmath>
 #include <string>
 #include <vector>
+
 #include "lite/core/op_registry.h"
 #include "lite/core/tensor.h"
 #include "lite/core/type_system.h"
@@ -138,14 +140,18 @@ void RoiAlignCompute::Run() {
   roi_batch_id_list.Resize({rois_num});
   int* roi_batch_id_data = roi_batch_id_list.mutable_data<int>();
 
-  auto rois_lod = rois->lod().back();
-  int rois_batch_size = rois_lod.size() - 1;
-  // CHECK_OR_FALSE(rois_batch_size == batch_size);
-  // int rois_num_with_lod = rois_lod[rois_batch_size];
-  // CHECK_OR_FALSE(rois_num_with_lod == rois_num);
-  for (int n = 0; n < rois_batch_size; ++n) {
-    for (size_t i = rois_lod[n]; i < rois_lod[n + 1]; ++i) {
-      roi_batch_id_data[i] = n;
+  if (rois->lod().empty() && in_dims[0] /* batch_size */ == 1) {
+    std::fill_n(roi_batch_id_data, rois_num, 0);
+  } else {
+    auto rois_lod = rois->lod().back();
+    int rois_batch_size = rois_lod.size() - 1;
+    // CHECK_OR_FALSE(rois_batch_size == batch_size);
+    // int rois_num_with_lod = rois_lod[rois_batch_size];
+    // CHECK_OR_FALSE(rois_num_with_lod == rois_num);
+    for (int n = 0; n < rois_batch_size; ++n) {
+      for (size_t i = rois_lod[n]; i < rois_lod[n + 1]; ++i) {
+        roi_batch_id_data[i] = n;
+      }
     }
   }
 

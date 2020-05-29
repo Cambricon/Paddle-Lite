@@ -8,3 +8,6 @@ add_kernel(io_copy_compute_mlu MLU basic SRCS io_copy_compute.cc DEPS ${lite_ker
 add_kernel(calib_compute_mlu MLU basic SRCS calib_compute.cc DEPS ${lite_kernel_deps})
 # depend on transpose function in backend/x86/math/math_function
 add_kernel(layout_compute_mlu MLU basic SRCS layout_compute.cc DEPS ${lite_kernel_deps} ${math_function})
+add_kernel(roi_align_compute_mlu MLU extra SRCS roi_align_compute.cc mlu_kernel/roi_align_kernel.o DEPS ${lite_kernel_deps})
+
+lite_cc_test(test_roi_align_compute_mlu SRCS roi_align_compute_test.cc DEPS roi_align_compute_mlu)
