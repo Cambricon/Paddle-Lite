@@ -551,7 +551,8 @@ void MLUPostprocessPass::ModifyInputOutputDataType(SSAGraph* graph) {
         } else {
           CHECK((in_node_type->target() == TARGET(kHost) ||
                  in_node_type->target() == TARGET(kX86)) &&
-                in_node_type->precision() == PRECISION(kFloat) &&
+                (in_node_type->precision() == PRECISION(kFloat) ||
+                 in_node_type->precision() == PRECISION(kInt32)) &&
                 in_node_type->layout() == DATALAYOUT(kNCHW))
               << "MLU subgraph unexpected common input type!";
         }
@@ -574,7 +575,8 @@ void MLUPostprocessPass::ModifyInputOutputDataType(SSAGraph* graph) {
           out_arg.type = LiteType::GetTensorTy(
               TARGET(kMLU), PRECISION(kAny), DATALAYOUT(kNHWC));
         } else {
-          CHECK(out_node_type->precision() == PRECISION(kFloat))
+          CHECK(out_node_type->precision() == PRECISION(kFloat) ||
+                out_node_type->precision() == PRECISION(kInt32))
               << "MLU subgraph unexpected common output type!";
           if (out_node->outlinks.empty()) {
             out_arg.type = LiteType::GetTensorTy(TARGET(kHost),
