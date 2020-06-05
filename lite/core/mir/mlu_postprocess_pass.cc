@@ -708,7 +708,8 @@ std::pair<bool, std::string> CheckOutputAndInsert(
   size_t cast_idx = 0;
 
   // subgraph -> cast -> layout -> output
-  if (!PrecisionCompatible(*tensor_type, *subgraph_type)) {
+  if (!PrecisionCompatible(*tensor_type, *subgraph_type) &&
+      tensor_type->precision() != PRECISION(kInt32)) {
     cast_op = block_desc->AddOp<cpp::OpDesc>();
     cast_idx = block_desc->OpsSize() - 1;
     CHECK_EQ(cast_op, block_desc->GetOp<cpp::OpDesc>(cast_idx));
