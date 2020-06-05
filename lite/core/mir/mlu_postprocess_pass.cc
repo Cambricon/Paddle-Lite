@@ -586,7 +586,7 @@ void MLUPostprocessPass::ModifyInputOutputDataType(SSAGraph* graph) {
                     << out_node_type->name();
           } else {
             out_arg.type = LiteType::GetTensorTy(
-                TARGET(kHost), PRECISION(kFloat), DATALAYOUT(kNCHW));
+                TARGET(kHost), out_node_type->precision(), DATALAYOUT(kNCHW));
             VLOG(4) << "output node type: " << out_arg.name
                     << out_node_type->name();
           }
