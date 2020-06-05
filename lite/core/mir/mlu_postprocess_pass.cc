@@ -77,8 +77,10 @@ Node* MLUPostprocessPass::InsertCastBefore(const std::string& op_type,
   for (auto& kernel : kernels) {
     if (op_type == "cast") {
       const Type* in_arg_ty = kernel->GetInputDeclType("X");
+      const Type* out_arg_ty = kernel->GetOutputDeclType("Out");
       if (PrecisionCompatibleTo(*in_arg_ty, *cur_node->AsArg().type) &&
-          DataLayoutCompatible(*in_arg_ty, *cur_node->AsArg().type)) {
+          PrecisionCompatibleTo(*out_arg_ty, *cast_type) &&
+          TargetCompatibleTo(*out_arg_ty, *cast_type)) {
         is_found = true;
       }
     } else if (op_type == "layout") {
@@ -86,6 +88,7 @@ Node* MLUPostprocessPass::InsertCastBefore(const std::string& op_type,
       const Type* out_arg_ty = kernel->GetOutputDeclType("Out");
       if (DataLayoutCompatible(*in_arg_ty, *cur_node->AsArg().type) &&
           DataLayoutCompatible(*out_arg_ty, *cast_type) &&
+          TargetCompatibleTo(*out_arg_ty, *cast_type) &&
           //  for first conv
           PrecisionCompatibleTo(*in_arg_ty, *cur_node->AsArg().type)) {
         is_found = true;
@@ -95,8 +98,7 @@ Node* MLUPostprocessPass::InsertCastBefore(const std::string& op_type,
       const Type* out_arg_ty = kernel->GetOutputDeclType("Out");
       if (TargetCompatibleTo(*in_arg_ty, *cur_node->AsArg().type) &&
           TargetCompatibleTo(*out_arg_ty, *cast_type) &&
-          PrecisionCompatible(*in_arg_ty, *cur_node->AsArg().type) &&
-          PrecisionCompatible(*out_arg_ty, *cast_type)) {
+          PrecisionCompatible(*in_arg_ty, *cur_node->AsArg().type)) {
         is_found = true;
       }
     } else {
@@ -170,7 +172,10 @@ Node* MLUPostprocessPass::InsertCastAfter(const std::string& op_type,
   for (auto& kernel : kernels) {
     if (op_type == "cast") {
       const Type* in_arg_ty = kernel->GetInputDeclType("X");
-      if (PrecisionCompatibleTo(*in_arg_ty, *cast_type)) {
+      const Type* out_arg_ty = kernel->GetOutputDeclType("Out");
+      if (PrecisionCompatibleTo(*in_arg_ty, *cast_type) &&
+          PrecisionCompatibleTo(*out_arg_ty, *cur_node->AsArg().type) &&
+          TargetCompatibleTo(*in_arg_ty, *cast_type)) {
         is_found = true;
       }
     } else if (op_type == "layout") {
@@ -178,6 +183,7 @@ Node* MLUPostprocessPass::InsertCastAfter(const std::string& op_type,
       const Type* out_arg_ty = kernel->GetOutputDeclType("Out");
       if (DataLayoutCompatible(*in_arg_ty, *cast_type) &&
           DataLayoutCompatible(*out_arg_ty, *cur_node->AsArg().type) &&
+          TargetCompatibleTo(*in_arg_ty, *cast_type) &&
           PrecisionCompatibleTo(*in_arg_ty, *cast_type)) {
         is_found = true;
       }
@@ -186,8 +192,7 @@ Node* MLUPostprocessPass::InsertCastAfter(const std::string& op_type,
       const Type* out_arg_ty = kernel->GetOutputDeclType("Out");
       if (TargetCompatibleTo(*in_arg_ty, *cast_type) &&
           TargetCompatibleTo(*out_arg_ty, *cur_node->AsArg().type) &&
-          PrecisionCompatible(*in_arg_ty, *cur_node->AsArg().type) &&
-          PrecisionCompatible(*out_arg_ty, *cast_type)) {
+          PrecisionCompatible(*out_arg_ty, *cur_node->AsArg().type)) {
         is_found = true;
       }
     } else {
@@ -231,6 +236,16 @@ void MLUPostprocessPass::InsertBefore(SSAGraph* graph,
 
   // precision cast node
   if (!use_mlu_cast) {
+    // io copy
+    cur_node = InsertCastBefore(
+        "io_copy",
+        name_prefix + "io_copy",
+        graph,
+        cur_node,
+        inst_node,
+        LiteType::GetTensorTy(
+            inst_type->target(), head_type->precision(), head_type->layout()));
+
     if (head_type->precision() != inst_type->precision() &&
         !is_first_conv_head) {
       cur_node = InsertCastBefore("cast",
@@ -238,7 +253,7 @@ void MLUPostprocessPass::InsertBefore(SSAGraph* graph,
                                   graph,
                                   cur_node,
                                   inst_node,
-                                  LiteType::GetTensorTy(head_type->target(),
+                                  LiteType::GetTensorTy(inst_type->target(),
                                                         inst_type->precision(),
                                                         head_type->layout()));
     }
@@ -250,20 +265,10 @@ void MLUPostprocessPass::InsertBefore(SSAGraph* graph,
                                   graph,
                                   cur_node,
                                   inst_node,
-                                  LiteType::GetTensorTy(head_type->target(),
+                                  LiteType::GetTensorTy(inst_type->target(),
                                                         inst_type->precision(),
                                                         inst_type->layout()));
     }
-
-    // io copy
-    cur_node = InsertCastBefore(
-        "io_copy",
-        name_prefix + "io_copy",
-        graph,
-        cur_node,
-        inst_node,
-        LiteType::GetTensorTy(
-            inst_type->target(), inst_type->precision(), inst_type->layout()));
   } else {
     // io copy
     cur_node = InsertCastBefore(
@@ -393,13 +398,23 @@ void MLUPostprocessPass::InsertAfter(SSAGraph* graph,
 
   // precision cast node
   if (!use_mlu_cast) {
+    // io copy
+    cur_node = InsertCastAfter(
+        "io_copy",
+        name_prefix + "io_copy",
+        graph,
+        cur_node,
+        inst_node,
+        LiteType::GetTensorTy(
+            inst_type->target(), tail_type->precision(), tail_type->layout()));
+
     if (tail_type->precision() != inst_type->precision()) {
       cur_node = InsertCastAfter("cast",
                                  name_prefix + "cast",
                                  graph,
                                  cur_node,
                                  inst_node,
-                                 LiteType::GetTensorTy(tail_type->target(),
+                                 LiteType::GetTensorTy(inst_type->target(),
                                                        inst_type->precision(),
                                                        tail_type->layout()));
     }
@@ -411,20 +426,10 @@ void MLUPostprocessPass::InsertAfter(SSAGraph* graph,
                                  graph,
                                  cur_node,
                                  inst_node,
-                                 LiteType::GetTensorTy(tail_type->target(),
+                                 LiteType::GetTensorTy(inst_type->target(),
                                                        inst_type->precision(),
                                                        inst_type->layout()));
     }
-
-    // io copy
-    cur_node = InsertCastAfter(
-        "io_copy",
-        name_prefix + "io_copy",
-        graph,
-        cur_node,
-        inst_node,
-        LiteType::GetTensorTy(
-            inst_type->target(), inst_type->precision(), inst_type->layout()));
   } else {
     cur_node = InsertCastAfter(
         "io_copy",
@@ -858,6 +863,7 @@ void ModifyValidPlaces(SSAGraph* graph, bool use_mlu_cast) {
     for (auto& place : v_places) {
       prec_set.insert(place.precision);
     }
+    prec_set.insert(PRECISION(kFloat));
 #ifdef LITE_WITH_MLU
     if (lite::TargetWrapperMlu::UseFirstConv()) {
       prec_set.insert(PRECISION(kInt8));
@@ -865,7 +871,9 @@ void ModifyValidPlaces(SSAGraph* graph, bool use_mlu_cast) {
 #endif
     for (auto& prec : prec_set) {
       v_places.emplace_back(TARGET(kX86), prec, DATALAYOUT(kNHWC));
+      v_places.emplace_back(TARGET(kMLU), prec, DATALAYOUT(kNCHW));
     }
+    v_places.emplace_back(TARGET(kMLU), PRECISION(kFloat), DATALAYOUT(kNHWC));
   }
 
   graph->SetValidPlaces(v_places);
