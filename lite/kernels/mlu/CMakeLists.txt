@@ -10,4 +10,6 @@ add_kernel(calib_compute_mlu MLU basic SRCS calib_compute.cc DEPS ${lite_kernel_
 add_kernel(layout_compute_mlu MLU basic SRCS layout_compute.cc DEPS ${lite_kernel_deps} ${math_function})
 add_kernel(roi_align_compute_mlu MLU extra SRCS roi_align_compute.cc mlu_kernel/roi_align_kernel.o DEPS ${lite_kernel_deps})
 
-lite_cc_test(test_roi_align_compute_mlu SRCS roi_align_compute_test.cc DEPS roi_align_compute_mlu)
+if(LITE_BUILD_EXTRA)
+    lite_cc_test(test_roi_align_compute_mlu SRCS roi_align_compute_test.cc DEPS roi_align_compute_mlu)
+endif()
