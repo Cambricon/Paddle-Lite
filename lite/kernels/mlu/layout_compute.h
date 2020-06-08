@@ -15,6 +15,9 @@
 #pragma once
 
 #include <Eigen/Core>
+#include <algorithm>
+#include <map>
+#include <memory>
 #include <string>
 #include <vector>
 #include "lite/backends/x86/math/math_function.h"

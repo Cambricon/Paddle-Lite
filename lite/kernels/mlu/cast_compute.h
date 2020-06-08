@@ -13,7 +13,10 @@
 // limitations under the License.
 
 #pragma once
+#include <algorithm>
 #include <map>
+#include <memory>
+#include <vector>
 #include "lite/backends/mlu/mlu_utils.h"
 #include "lite/core/kernel.h"
 #include "lite/kernels/mlu/bridges/tensor.h"
