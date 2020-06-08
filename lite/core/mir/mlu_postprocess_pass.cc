@@ -554,6 +554,14 @@ void MLUPostprocessPass::ModifyInputOutputDataType(SSAGraph* graph) {
           in_node->AsArg().type = LiteType::GetTensorTy(
               TARGET(kMLU), PRECISION(kAny), DATALAYOUT(kNHWC));
         } else {
+          if (!in_node->inlinks.empty()) {
+            auto& upkernel = in_node->inlinks.front()->AsStmt().picked_kernel();
+            if (upkernel.target() == TARGET(kMLU)) {
+              in_node->AsArg().type = LiteType::GetTensorTy(
+                  TARGET(kMLU), upkernel.precision(), upkernel.layout());
+              continue;
+            }
+          }
           CHECK((in_node_type->target() == TARGET(kHost) ||
                  in_node_type->target() == TARGET(kX86)) &&
                 in_node_type->precision() == PRECISION(kFloat) &&
@@ -588,6 +596,13 @@ void MLUPostprocessPass::ModifyInputOutputDataType(SSAGraph* graph) {
             VLOG(4) << "unused output node type: " << out_arg.name
                     << out_node_type->name();
           } else {
+            auto& downkernel =
+                out_node->outlinks.front()->AsStmt().picked_kernel();
+            if (downkernel.target() == TARGET(kMLU)) {
+              out_arg.type = LiteType::GetTensorTy(
+                  TARGET(kMLU), downkernel.precision(), downkernel.layout());
+              continue;
+            }
             out_arg.type = LiteType::GetTensorTy(
                 TARGET(kHost), PRECISION(kFloat), DATALAYOUT(kNCHW));
             VLOG(4) << "output node type: " << out_arg.name
