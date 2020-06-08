@@ -88,4 +88,4 @@ class IdentityCastEliminatePass : public ProgramPass {
 
 REGISTER_MIR_PASS(identity_cast_eliminate_pass,
                   paddle::lite::mir::IdentityCastEliminatePass)
-    .BindTargets({TARGET(kAny)});
+    .BindTargets({TARGET(kMLU)});

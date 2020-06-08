@@ -73,7 +73,6 @@ class Optimizer {
            "lite_interpolate_fuse_pass",                  //
            "identity_scale_eliminate_pass",               //
            "elementwise_mul_constant_eliminate_pass",     //
-           "lite_sequence_pool_concat_fuse_pass",         //
 #if (defined LITE_WITH_LIGHT_WEIGHT_FRAMEWORK) || (defined LITE_WITH_CUDA) || \
     (defined LITE_WITH_ARM)
            "lite_elementwise_add_activation_fuse_pass",  //
@@ -91,6 +90,9 @@ class Optimizer {
            "bm_subgraph_pass",
            "rknpu_subgraph_pass",
            "identity_cast_eliminate_pass",
+           "mlu_subgraph_pass",
+           "lite_sequence_pool_concat_fuse_pass",  //
+           "mlu_subgraph_pass",
            "static_kernel_pick_pass",        // pick original kernel from graph
            "variable_place_inference_pass",  // inference arg/var's
 
