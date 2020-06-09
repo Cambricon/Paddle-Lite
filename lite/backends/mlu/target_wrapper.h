@@ -102,9 +102,9 @@ class TargetWrapper<TARGET(kMLU)> {
   //                         IoDirection dir,
   //                         const queue_t& queue);
  public:
+  static std::mutex info_map_mutex_;
   static std::map<int64_t, ThreadLocalInfo> predictor_info_map_;
   static std::map<std::thread::id, int64_t> thread_predictor_map_;
-  static std::mutex info_map_mutex_;
 };
 
 }  // namespace lite
