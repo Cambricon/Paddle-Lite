@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include <vector>
 #include "lite/backends/mlu/mlu_utils.h"
 #include "lite/kernels/mlu/bridges/utility.h"
 
@@ -25,20 +26,24 @@ namespace mlu {
 struct MLUOperator {
   cnmlBaseOp_t cnml_op = nullptr;
   // compile time tensor
-  cnmlTensor_t input_tensor = nullptr;
-  cnmlTensor_t output_tensor = nullptr;
+  std::vector<cnmlTensor_t> input_tensors{};
+  std::vector<cnmlTensor_t> output_tensors{};
   ~MLUOperator() {
     if (cnml_op != nullptr) {
       CNML_CALL(cnmlDestroyBaseOp(&cnml_op));
       cnml_op = nullptr;
     }
-    if (input_tensor != nullptr) {
-      CNML_CALL(cnmlDestroyTensor(&input_tensor));
-      input_tensor = nullptr;
+    if (!input_tensors.empty()) {
+      std::for_each(input_tensors.begin(),
+                    input_tensors.end(),
+                    [](cnmlTensor_t t) { CNML_CALL(cnmlDestroyTensor(&t)); });
+      input_tensors.clear();
     }
-    if (output_tensor != nullptr) {
-      CNML_CALL(cnmlDestroyTensor(&output_tensor));
-      output_tensor = nullptr;
+    if (!output_tensors.empty()) {
+      std::for_each(output_tensors.begin(),
+                    output_tensors.end(),
+                    [](cnmlTensor_t t) { CNML_CALL(cnmlDestroyTensor(&t)); });
+      output_tensors.clear();
     }
   }
 };

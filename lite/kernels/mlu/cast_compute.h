@@ -110,22 +110,26 @@ class CastCompute
 
     // prepare op and io tensor
     auto op = std::make_shared<MLUOperator>();
+    op->input_tensors.emplace_back();
+    op->output_tensors.emplace_back();
 
     int* dim_strides = nullptr;
-    CNML_CALL(cnmlCreateTensor_V2(&op->input_tensor, CNML_TENSOR));
+    CNML_CALL(cnmlCreateTensor_V2(&op->input_tensors[0], CNML_TENSOR));
     CNML_CALL(cnmlSetTensorShape_V2(
-        op->input_tensor, dims.size(), dims.data(), dim_strides));
+        op->input_tensors[0], dims.size(), dims.data(), dim_strides));
     CNML_CALL(cnmlSetTensorDataType(
-        op->input_tensor, subgraph::mlu::MLUTypeTraits<in_dtype>::cnml_type));
+        op->input_tensors[0],
+        subgraph::mlu::MLUTypeTraits<in_dtype>::cnml_type));
 
-    CNML_CALL(cnmlCreateTensor_V2(&op->output_tensor, CNML_TENSOR));
+    CNML_CALL(cnmlCreateTensor_V2(&op->output_tensors[0], CNML_TENSOR));
     CNML_CALL(cnmlSetTensorShape_V2(
-        op->output_tensor, dims.size(), dims.data(), dim_strides));
+        op->output_tensors[0], dims.size(), dims.data(), dim_strides));
     CNML_CALL(cnmlSetTensorDataType(
-        op->output_tensor, subgraph::mlu::MLUTypeTraits<out_dtype>::cnml_type));
+        op->output_tensors[0],
+        subgraph::mlu::MLUTypeTraits<out_dtype>::cnml_type));
 
     CNML_CALL(cnmlCreateCastOp(
-        &op->cnml_op, cast_type, op->input_tensor, op->output_tensor));
+        &op->cnml_op, cast_type, op->input_tensors[0], op->output_tensors[0]));
     CNML_CALL(cnmlSetBaseOpCorenum(op->cnml_op, ctx->MLUCoreNumber()));
     CNML_CALL(cnmlSetBaseOpCoreVersion(op->cnml_op, ctx->MLUCoreVersion()));
     CNML_CALL(cnmlCompileBaseOp_V2(op->cnml_op));

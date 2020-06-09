@@ -234,25 +234,31 @@ class LayoutComputeMlu
 
     // prepare op and io tensor
     auto op = std::make_shared<MLUOperator>();
+    op->input_tensors.emplace_back();
+    op->output_tensors.emplace_back();
 
     int* dim_strides = nullptr;
-    CNML_CALL(cnmlCreateTensor_V2(&op->input_tensor, CNML_TENSOR));
+    CNML_CALL(cnmlCreateTensor_V2(&op->input_tensors[0], CNML_TENSOR));
     CNML_CALL(cnmlSetTensorShape_V2(
-        op->input_tensor, in_dims.size(), in_dims.data(), dim_strides));
+        op->input_tensors[0], in_dims.size(), in_dims.data(), dim_strides));
     CNML_CALL(cnmlSetTensorDataType(
-        op->input_tensor, subgraph::mlu::MLUTypeTraits<Precision>::cnml_type));
+        op->input_tensors[0],
+        subgraph::mlu::MLUTypeTraits<Precision>::cnml_type));
 
-    CNML_CALL(cnmlCreateTensor_V2(&op->output_tensor, CNML_TENSOR));
+    CNML_CALL(cnmlCreateTensor_V2(&op->output_tensors[0], CNML_TENSOR));
     CNML_CALL(cnmlSetTensorShape_V2(
-        op->output_tensor, out_dims.size(), out_dims.data(), dim_strides));
+        op->output_tensors[0], out_dims.size(), out_dims.data(), dim_strides));
     CNML_CALL(cnmlSetTensorDataType(
-        op->output_tensor, subgraph::mlu::MLUTypeTraits<Precision>::cnml_type));
+        op->output_tensors[0],
+        subgraph::mlu::MLUTypeTraits<Precision>::cnml_type));
 
     cnmlNdTransposeOpParam_t transpose_param;
     CNML_CALL(cnmlCreateNdTransposeOpParam(
         &transpose_param, axis.data(), axis.size()));
-    CNML_CALL(cnmlCreateNdTransposeProOp(
-        &op->cnml_op, op->input_tensor, op->output_tensor, transpose_param));
+    CNML_CALL(cnmlCreateNdTransposeProOp(&op->cnml_op,
+                                         op->input_tensors[0],
+                                         op->output_tensors[0],
+                                         transpose_param));
     CNML_CALL(cnmlDestroyNdTransposeOpParam(&transpose_param));
 
     CNML_CALL(cnmlSetBaseOpCorenum(op->cnml_op, ctx->MLUCoreNumber()));
