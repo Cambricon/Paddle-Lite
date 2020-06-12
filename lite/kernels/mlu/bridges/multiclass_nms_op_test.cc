@@ -16,6 +16,8 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
+#include <cstdlib>
 #include <fstream>
 #include <random>
 
@@ -27,6 +29,81 @@ namespace paddle {
 namespace lite {
 namespace subgraph {
 namespace mlu {
+
+std::vector<float> gen_random_boxes(int box_num, int img_w, int img_h) {
+  std::vector<float> boxes;
+  unsigned int SEED = 1;
+
+  for (size_t i = 0; i < box_num; i++) {
+    float x = rand_r(&SEED) / static_cast<double>(RAND_MAX) * img_w;
+    float w = rand_r(&SEED) / static_cast<double>(RAND_MAX) * img_w;
+    float y = rand_r(&SEED) / static_cast<double>(RAND_MAX) * img_h;
+    float h = rand_r(&SEED) / static_cast<double>(RAND_MAX) * img_h;
+    float xmin = std::max(0.0f, (x - w) / 2);
+    float ymin = std::max(0.0f, (y - h) / 2);
+    float xmax = std::min(static_cast<float>(img_w), (x + w) / 2);
+    float ymax = std::min(static_cast<float>(img_h), (y + h) / 2);
+    boxes.push_back(xmin);
+    boxes.push_back(ymin);
+    boxes.push_back(xmax);
+    boxes.push_back(ymax);
+  }
+  return boxes;
+}
+
+std::vector<float> gen_random_scores(int box_num, int class_num) {
+  std::vector<float> scores;
+  unsigned int SEED = 1;
+  for (size_t i = 0; i < box_num; i++) {
+    for (size_t i = 0; i < class_num; i++) {
+      scores.push_back(rand_r(&SEED) / static_cast<double>(RAND_MAX));
+    }
+  }
+  return scores;
+}
+
+float Area(float box[4]) {
+  float xmin = box[0];
+  float ymin = box[1];
+  float xmax = box[2];
+  float ymax = box[3];
+  CHECK(xmax > xmin) << "xmax: " << xmax << " xmin: " << xmin;
+  CHECK(ymax > ymin) << "ymax: " << ymax << " ymin: " << ymin;
+  float w = xmax - xmin;
+  float h = ymax - ymin;
+  return w * h;
+}
+
+// overlap may < 0
+float overlap(float min1, float max1, float min2, float max2) {
+  return ((max1 - min1) + (max2 - min2)) -
+         (std::max(max2, max1) - std::min(min1, min2));
+}
+
+float IntersectionArea(float box1[4], float box2[4]) {
+  float box1_xmin = box1[0];
+  float box1_ymin = box1[1];
+  float box1_xmax = box1[2];
+  float box1_ymax = box1[3];
+
+  float box2_xmin = box2[0];
+  float box2_ymin = box2[1];
+  float box2_xmax = box2[2];
+  float box2_ymax = box2[3];
+
+  float x_overlap = overlap(box1_xmin, box1_xmax, box2_xmin, box2_xmax);
+  float y_overlap = overlap(box1_ymin, box1_ymax, box2_ymin, box2_ymax);
+  float intersection_area = x_overlap * y_overlap;
+  return std::max(intersection_area, 0.0f);
+}
+
+float IOU(float box1[4], float box2[4]) {
+  float area1 = Area(box1);
+  float area2 = Area(box2);
+  float intersection_area = IntersectionArea(box1, box2);
+  float union_area = area1 + area2 - intersection_area;
+  return intersection_area / union_area;
+}
 
 template <typename T>
 void VecToFile(const std::vector<T>& vec, std::string filename) {
@@ -70,7 +147,6 @@ void FromFile(Tensor* tensor, std::string file_name) {
   std::ifstream f;
   f.open(file_name, std::ios::in);
   if (f.good()) {
-    // VLOG(6) << reinterpret_cast<void*>(tensor->mutable_data<float>());
     for (size_t i = 0; i < tensor->dims().production(); i++) {
       f >> tensor->mutable_data<float>()[i];
     }
@@ -164,21 +240,6 @@ void apply_nms_fast(const dtype* bboxes,
   std::vector<std::pair<dtype, int>> score_index_vec;
   get_max_score_index(scores, num, score_threshold, top_k, &score_index_vec);
 
-  // ============= DEBUG ==========================
-  // std::string filename = "score_index_vec.txt";
-  // std::ofstream f(filename, std::ios::out);
-  // if (!f) {
-  //   LOG(FATAL) << "can not create " << filename << std::endl;
-  // }
-  // for (size_t i = 0; i < score_index_vec.size(); i++) {
-  //   VLOG(6) << score_index_vec[i].first << " : " << score_index_vec[i].second
-  //     << std::endl;
-  //   // f << std::to_string(score_index_vec[i].first) << " : "
-  //   //   << std::to_string([i].second) << std::endl;
-  // }
-  // f.close();
-  // ============= DEBUG END ======================
-
   // Do nms.
   float adaptive_threshold = nms_threshold;
   indices->clear();
@@ -208,13 +269,6 @@ void apply_nms_fast(const dtype* bboxes,
       adaptive_threshold *= eta;
     }
   }
-  // filename = "indices.txt";
-  // VecToFile(*indices, filename);
-  // VLOG(6) << "incices";
-  // for (size_t i = 0; i < indices->size(); i++)
-  // {
-  //   VLOG(6) << (*indices)[i];
-  // }
 }
 
 template <typename dtype>
@@ -268,10 +322,6 @@ void multiclass_nms_compute_ref(const operators::MulticlassNmsParam& param,
                      nms_topk,
                      &(indices[c]));
       num_det += indices[c].size();
-      // for (size_t i = 0; i < indices[c].size(); i++)
-      // {
-      //   VLOG(6) << "indices[c]: " << indices[c][i];
-      // }
     }
 
     if (keep_topk > -1 && num_det > keep_topk) {
@@ -392,17 +442,15 @@ void test_multiclass_nms(float score_threshold,
   scores->Resize(scores_shape);
   out_num->Resize(out_num_shape);
 
-  // initialize input&output data
-  std::string bboxes_file =
-      "/opt/zhaoying/projects/PaddleDetectionForDMH/paddle-dump/"
-      "437_concat_2.tmp_0_1_22743_4_.txt";
-  std::string scores_file =
-      "/opt/zhaoying/projects/PaddleDetectionForDMH/paddle-dump/"
-      "438_concat_3.tmp_0_1_80_22743_.txt";
-  // FillTensor<float>(bboxes);
-  // FillTensor<float>(scores);
-  FromFile(bboxes, bboxes_file);
-  FromFile(scores, scores_file);
+  std::vector<float> bboxes_vec = gen_random_boxes(num_boxes, 1024, 1024);
+  std::vector<float> scores_vec = gen_random_scores(num_boxes, class_num);
+
+  for (size_t i = 1; i < bboxes_vec.size(); i++) {
+    bboxes->mutable_data<float>()[i] = bboxes_vec[i];
+  }
+  for (size_t i = 1; i < scores_vec.size(); i++) {
+    scores->mutable_data<float>()[i] = scores_vec[i];
+  }
 
   // initialize op desc
   cpp::OpDesc opdesc;
@@ -479,17 +527,45 @@ void test_multiclass_nms(float score_threshold,
             {0, 2, 1});
   out->CopyDataFrom(out_trans);
 
-  ToFile(out, "nms_out_mlu.txt");
-  ToFile(out_num, "nms_out_num_mlu.txt");
-  VecToFile(result, "nms_out_cpu.txt");
-  // compare results
+  // ToFile(out, "nms_out_mlu.txt");
+  // ToFile(out_num, "nms_out_num_mlu.txt");
+  // VecToFile(result, "nms_out_cpu.txt");
 
   // auto out_data = out->mutable_data<float>();
-  for (int i = 0; i < out->dims().production(); i++) {
-    // VLOG(6) << "index: " << i;
-    // nms not correspond elementwise
-    // EXPECT_NEAR(out_data[i], result[i], 1e-2);
+  int num_box = out->dims()[1];
+  int match_count = 0;
+  std::vector<int> matched_cpu_index;
+  for (int i = 0; i < num_box; i++) {
+    float mlu_box[4];
+    mlu_box[0] = out->mutable_data<float>()[i * 6 + 2];
+    mlu_box[1] = out->mutable_data<float>()[i * 6 + 3];
+    mlu_box[2] = out->mutable_data<float>()[i * 6 + 4];
+    mlu_box[3] = out->mutable_data<float>()[i * 6 + 5];
+    bool match = false;
+    for (size_t j = 0; j < num_box; j++) {
+      // if j th cpu box has matched some mlu box, do not use if to match other
+      // mlu box
+      if (std::find(std::begin(matched_cpu_index),
+                    std::end(matched_cpu_index),
+                    j) != std::end(matched_cpu_index)) {
+        continue;
+      }
+      float cpu_box[4];
+      cpu_box[0] = result[j * 6 + 2];
+      cpu_box[1] = result[j * 6 + 3];
+      cpu_box[2] = result[j * 6 + 4];
+      cpu_box[3] = result[j * 6 + 5];
+      if (IOU(mlu_box, cpu_box) >= 0.9) {
+        match = true;
+        matched_cpu_index.push_back(j);
+        break;
+      }
+    }
+    if (match) {
+      match_count += 1;
+    }
   }
+  EXPECT_NEAR(match_count, num_box, 0);
 }
 
 TEST(MLUBridges, multiclass_nms) {
