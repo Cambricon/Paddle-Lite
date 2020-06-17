@@ -24,6 +24,7 @@ lite_cc_library(mir_passes
       fusion/__xpu__resnet_fuse_pass.cc
       fusion/__xpu__multi_encoder_fuse_pass.cc
       elimination/identity_scale_eliminate_pass.cc
+      elimination/identity_cast_eliminate_pass.cc
       elimination/elementwise_mul_constant_eliminate_pass.cc
       static_kernel_pick_pass.cc
       variable_place_inference_pass.cc
@@ -35,6 +36,7 @@ lite_cc_library(mir_passes
       generate_program_pass.cc
       argument_type_display_pass.cc
       demo_pass.cc
+      int64_to_int32_pass.cc
       runtime_context_assign_pass.cc
       memory_optimize_pass.cc
       multi_stream_analysis_pass.cc

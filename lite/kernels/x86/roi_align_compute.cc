@@ -121,6 +121,7 @@ void RoiAlignCompute::Run() {
   auto rois_dims = rois->dims();
   int rois_num = rois_dims[0];
   auto out_dims = out->dims();
+
   if (rois_num == 0) {
     return;
   }
