@@ -46,8 +46,8 @@ void TransposeCompute::Run(const cnrtQueue_t& exec_queue) {
   int p0 = 1, p1 = 1, p2 = 1, p3 = 1, p4 = 1, p5 = 1, p6 = 1, p7 = 1;
   int dims = 2, max_idx = 0, size_dt = sizeof(float),
       sum_num = in_dims.production();
-  cnnlDataType_t data_type = CNNL_DTYPE_FLOAT;
-  cnnlTransposeStrategy_t strategy;
+  mluDataType_t data_type = MLU_DTYPE_FLOAT;
+  mluTransposeStrategy_t strategy;
   if (axis.size() == 4) {
     // if (axis == {0, 2, 3, 1}) {
     if (axis[0] == 0 && axis[1] == 2 && axis[2] == 3 && axis[3] == 1) {
@@ -155,11 +155,11 @@ void TransposeCompute::Run(const cnrtQueue_t& exec_queue) {
   cnrtKernelParamsBufferAddParam(params, &strategy, sizeof(strategy));
 
   cnrtDim3_t task_dims;
-  task_dims.x = 1, task_dims.y = 1, task_dims.z = 1;
-  cnrtFunctionType_t func_type = CNRT_FUNC_TYPE_BLOCK;
+  task_dims.x = 4, task_dims.y = 1, task_dims.z = 1;
+  cnrtFunctionType_t func_type = CNRT_FUNC_TYPE_UNION1;
 
   // invoke kernel and sync to compute on MLU
-  CNRT_CALL(cnrtInvokeKernel_V2(reinterpret_cast<void*>(&MLUTransposeKernel),
+  CNRT_CALL(cnrtInvokeKernel_V2(reinterpret_cast<void**>(&MLUTransposeKernel),
                                 task_dims,
                                 params,
                                 func_type,

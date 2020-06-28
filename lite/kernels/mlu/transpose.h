@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef KERNELS_TRANSPOSE_TRANSPOSE_H_
-#define KERNELS_TRANSPOSE_TRANSPOSE_H_
+#ifndef LITE_KERNELS_MLU_TRANSPOSE_H_
+#define LITE_KERNELS_MLU_TRANSPOSE_H_
 
 #include <vector>
 // #include "kernels/kernel.h"
@@ -38,12 +38,12 @@
 #define TRANSPOSE_MAX_U1_JOB (4)
 #define TRANSPOSE_MAX_BLOCK_JOB (4)
 
-struct cnnlTransposeStruct {
+struct mluTransposeStruct {
   int dim;
   std::vector<int> permute;
 };
 
-typedef enum cnnlTransposeStrategy {
+typedef enum mluTransposeStrategy {
   TRANSPOSE_1D,
   TRANSPOSE_2D,
   TRANSPOSE_3D_021,
@@ -61,80 +61,76 @@ typedef enum cnnlTransposeStrategy {
   TRANSPOSE_4D_3102,
   TRANSPOSE_4D_3210,
   TRANSPOSE_COMMON,
-} cnnlTransposeStrategy_t;
+} mluTransposeStrategy_t;
 
-typedef enum cnnlDataType {
-  CNNL_DTYPE_INT32,
-  CNNL_DTYPE_FLOAT,
-  CNNL_DTYPE_HALF,
-  CNNL_DTYPE_INT16,
-  CNNL_DTYPE_INT8,
-  CNNL_DTYPE_BOOL,
-  CNNL_DTYPE_INT31,
-} cnnlDataType_t;
+typedef enum mluDataType {
+  MLU_DTYPE_INT32,
+  MLU_DTYPE_FLOAT,
+  MLU_DTYPE_HALF,
+  MLU_DTYPE_INT16,
+  MLU_DTYPE_INT8,
+  MLU_DTYPE_BOOL,
+  MLU_DTYPE_INT31,
+} mluDataType_t;
 
-typedef enum cnnlStatus {
-  CNNL_STATUS_SUCCESS,
-  CNNL_STATUS_ALLOC_FAILED,
-  CNNL_STATUS_BAD_PARAM,
-} cnnlStatus_t;
+typedef enum mluStatus {
+  MLU_STATUS_SUCCESS,
+  MLU_STATUS_ALLOC_FAILED,
+  MLU_STATUS_BAD_PARAM,
+} mluStatus_t;
 
-typedef struct cnnlTransposeStruct *cnnlTransposeDescriptor_t;
+typedef struct mluTransposeStruct *mluTransposeDescriptor_t;
 
-struct cnnlContext {
+struct mluContext {
   cnrtDev_t device;
   cnrtQueue_t queue;
   int32_t cluster_num;
   int32_t core_num_per_cluster;
 };
 
-typedef struct cnnlContext *cnnlHandle_t;
+typedef struct mluContext *mluHandle_t;
 
-int32_t getNumOfUnionCapability(cnnlHandle_t handle) {
+int32_t getNumOfUnionCapability(mluHandle_t handle) {
   // CHECK(handle != NULL);
   return handle->cluster_num;
 }
 
-struct cnnlTensorStruct {
-  cnnlTensorStruct()
+struct mluTensorStruct {
+  mluTensorStruct()
       : dim(0),
-        dtype(CNNL_DTYPE_FLOAT),  // layout(CNNL_LAYOUT_ARRAY),
+        dtype(MLU_DTYPE_FLOAT),  // layout(MLU_LAYOUT_ARRAY),
         position(0),
         scale(1.0),
         offset(0.0) {}
-  ~cnnlTensorStruct() {}
-  cnnlStatus_t tensorDimN(size_t &dim);
-  cnnlStatus_t tensorDimC(size_t &dim);
-  cnnlStatus_t tensorDimH(size_t &dim);
-  cnnlStatus_t tensorDimW(size_t &dim);
-  cnnlStatus_t tensorElementsNumber(size_t &elements) {
-    uint64_t elements_counter = 1;
-    // for (auto dimension : dims) {
-    for (int i = 0; i < dims.size(); i++) {
-      int dimension = dims[i];
-      elements_counter *= dimension;
-    }
-    elements = elements_counter;
-    return CNNL_STATUS_SUCCESS;
-  };
-  cnnlStatus_t tensorSize(size_t &size);
+  ~mluTensorStruct() {}
+  // mluStatus_t tensorElementsNumber(size_t &elements) {
+  //   uint64_t elements_counter = 1;
+  //   // for (auto dimension : dims) {
+  //   for (int i = 0; i < dims.size(); i++) {
+  //     int dimension = dims[i];
+  //     elements_counter *= dimension;
+  //   }
+  //   elements = elements_counter;
+  //   return MLU_STATUS_SUCCESS;
+  // }
+  mluStatus_t tensorSize(const size_t &size);
   int dim;
   std::vector<int> dims;
-  cnnlDataType_t dtype;
-  // cnnlTensorLayout_t layout;
+  mluDataType_t dtype;
+  // mluTensorLayout_t layout;
   int position;
   float scale;
   float offset;
 };
 
-typedef struct cnnlTensorStruct *cnnlTensorDescriptor_t;
+typedef struct mluTensorStruct *mluTensorDescriptor_t;
 
-uint64_t cnnlGetTensorElementNum(cnnlTensorDescriptor_t desc) {
-  uint64_t tensor_num = 1;
-  cnnlStatus_t return_status = desc->tensorElementsNumber(tensor_num);
-  CHECK(return_status == CNNL_STATUS_SUCCESS);
-  return tensor_num;
-}
+// uint64_t mluGetTensorElementNum(mluTensorDescriptor_t desc) {
+//   uint64_t tensor_num = 1;
+//   mluStatus_t return_status = desc->tensorElementsNumber(tensor_num);
+//   CHECK(return_status == MLU_STATUS_SUCCESS);
+//   return tensor_num;
+// }
 
 void MLUTransposeKernel(void *x,
                         void *y,
@@ -158,7 +154,7 @@ void MLUTransposeKernel(void *x,
                         const int max_idx,
                         const int size_dt,
                         const int sum_num,
-                        cnnlDataType_t type,
-                        cnnlTransposeStrategy_t strategy);
+                        mluDataType_t type,
+                        mluTransposeStrategy_t strategy);
 
-#endif  // KERNELS_TRANSPOSE_TRANSPOSE_H_
+#endif  // LITE_KERNELS_MLU_TRANSPOSE_H_
