@@ -599,11 +599,12 @@ void MLUPostprocessPass::GatherAndModifyFirstConvNodes(SSAGraph* graph) {
 }
 
 void MLUPostprocessPass::ModifyInputOutputDataType(SSAGraph* graph) {
-  for (auto& node : graph->mutable_nodes()) {
-    if (node.IsStmt() && node.AsStmt().op_type() == "subgraph") {
+  // for (auto& node : graph->mutable_nodes()) {
+  for (auto& node : graph->NodeTopologicalOrder()) {
+    if (node->IsStmt() && node->AsStmt().op_type() == "subgraph") {
       const Type* subgraph_arg_type = nullptr;
-      GetSubgraphOpArgType(&node, &subgraph_arg_type, graph);
-      for (auto& in_node : node.inlinks) {
+      GetSubgraphOpArgType(node, &subgraph_arg_type, graph);
+      for (auto& in_node : node->inlinks) {
         const auto* in_node_type = in_node->AsArg().type;
         VLOG(4) << "MLU subgraph input type: " << in_node->AsArg().name
                 << *in_node_type;
@@ -631,12 +632,13 @@ void MLUPostprocessPass::ModifyInputOutputDataType(SSAGraph* graph) {
               << "MLU subgraph unexpected common input type!";
         }
       }
-      for (auto& out_node : node.outlinks) {
+      for (auto& out_node : node->outlinks) {
         const auto* out_node_type = out_node->AsArg().type;
         auto& out_arg = out_node->AsArg();
         VLOG(4) << "MLU subgraph output type: " << out_node->AsArg().name
                 << *out_node_type;
         if (out_node->AsArg().is_weight || out_node->AsArg().is_persist) {
+          VLOG(4) << "jjjj 1: " << out_node->AsArg().is_weight << ", " << out_node->AsArg().is_persist;
           CHECK(out_node_type->target() == TARGET(kHost) &&
                 out_node_type->precision() == PRECISION(kAny) &&
                 out_node_type->layout() == DATALAYOUT(kNCHW))
@@ -645,10 +647,12 @@ void MLUPostprocessPass::ModifyInputOutputDataType(SSAGraph* graph) {
               TARGET(kMLU), PRECISION(kAny), DATALAYOUT(kNHWC));
         } else if (out_node_type->precision() == PRECISION(kAny) &&
                    out_node->outlinks.empty()) {
+          VLOG(4) << "jjjj 2: ";
           out_arg.is_persist = true;
           out_arg.type = LiteType::GetTensorTy(
               TARGET(kMLU), PRECISION(kAny), DATALAYOUT(kNHWC));
         } else {
+          VLOG(4) << "jjjj 3 ";
           CHECK(out_node_type->precision() == PRECISION(kFloat) ||
                 out_node_type->precision() == PRECISION(kInt32))
               << "MLU subgraph unexpected common output type!";

@@ -51,6 +51,11 @@ add_operator(instance_norm_op basic SRCS instance_norm_op.cc DEPS ${op_DEPS})
 add_operator(subgraph_op basic SRCS subgraph_op.cc DEPS ${op_DEPS})
 add_operator(grid_sampler_op basic SRCS grid_sampler_op.cc DEPS ${op_DEPS})
 add_operator(flatten_op basic SRCS flatten_op.cc DEPS ${op_DEPS})
+add_operator(pow_op basic SRCS pow_op.cc DEPS ${op_DEPS})
+add_operator(clip_op basic SRCS clip_op.cc DEPS ${op_DEPS})
+add_operator(fill_any_like_op basic SRCS fill_any_like_op.cc DEPS ${op_DEPS})
+#add_operator(assign_value_op basic SRCS assign_value_op.cc DEPS ${op_DEPS})
+#add_operator(gather_op basic SRCS gather_op.cc DEPS ${op_DEPS})
 
 # 2.basic ops not used in basic models
 add_operator(negative_op extra SRCS negative_op.cc DEPS ${op_DEPS})

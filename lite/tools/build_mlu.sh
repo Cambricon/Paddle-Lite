@@ -4,7 +4,7 @@ set -ex
 # global variables with default value
 NEUWARE_HOME="${NEUWARE_HOME}"
 TARGET_NAME="all"    # default target
-BUILD_EXTRA=OFF                     # ON(with sequence ops)/OFF
+BUILD_EXTRA=ON #OFF                     # ON(with sequence ops)/OFF
 WITH_TESTING=ON                     # ON/OFF
 
 function print_usage {
@@ -75,7 +75,8 @@ function build_mlu {
         -DWITH_TESTING=${WITH_TESTING} \
         -DNEUWARE_HOME=${NEUWARE_HOME}
 
-    make $TARGET_NAME -j$NUM_CORES_FOR_COMPILE
+    #make $TARGET_NAME -j$NUM_CORES_FOR_COMPILE
+    make $TARGET_NAME -j
 
     cd -
     echo "Done"

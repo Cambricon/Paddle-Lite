@@ -213,6 +213,22 @@ struct PowerParam : ParamBase {
   float power{};
 };
 
+// For Pow Op
+struct PowParam : ParamBase {
+  const lite::Tensor* X{};
+  lite::Tensor* Out{};
+
+  float factor{1.};
+};
+
+// For fill_any_like Op
+struct FillAnyLikeParam : ParamBase {
+  const lite::Tensor* X{};
+  lite::Tensor* Out{};
+
+  float value{1.};
+};
+
 struct ShuffleChannelParam : ParamBase {
   const lite::Tensor* X{};
   lite::Tensor* Out{};
@@ -703,6 +719,16 @@ struct Pad2dParam : ParamBase {
   std::string mode{"constant"};
   float pad_value = 0.f;
   std::string data_format{"NCHW"};
+};
+
+/// ----------------------- Clip operators ----------------------
+struct ClipParam : ParamBase {
+  lite::Tensor* x{};
+  lite::Tensor* min_tensor{};
+  lite::Tensor* max_tensor{};
+  lite::Tensor* out{};
+  float min{};
+  float max{};
 };
 
 /// ----------------------- Crop operators ----------------------

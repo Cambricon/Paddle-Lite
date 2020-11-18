@@ -248,6 +248,27 @@ class SoftsignCompute : public KernelLite<TARGET(kX86), PRECISION(kFloat)> {
   virtual ~SoftsignCompute() = default;
 };
 
+// Out=ln(x)
+template <typename T>
+class LogCompute : public KernelLite<TARGET(kX86), PRECISION(kFloat)> {
+ public:
+  using param_t = operators::ActivationParam;
+
+  void Run() override {
+    // auto& context = ctx_->As<X86Context>();
+    auto& param = *param_.get_mutable<operators::ActivationParam>();
+
+    const T* x_data = param.X->template data<T>();
+    T* out_data = param.Out->template mutable_data<T>();
+    size_t x_size = param.X->numel();
+    for (size_t i = 0; i < x_size; i++) {
+      out_data[i] = std::log10(x_data[i]);
+    }
+  }
+
+  virtual ~LogCompute() = default;
+};
+
 }  // namespace x86
 }  // namespace kernels
 }  // namespace lite
